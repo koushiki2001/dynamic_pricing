@@ -1,3 +1,13 @@
+---
+title: Ride-Hailing Dynamic Pricing
+emoji: 🚕
+colorFrom: yellow
+colorTo: red
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Ride-Hailing Dynamic Pricing — OpenEnv Environment
 
 A multi-step negotiation environment where an AI agent acts as a **ride-hailing platform**, proposing prices each round to a rider and a driver who independently accept or reject. The agent must find a price both parties agree on — quickly, profitably, and without anyone walking away.
