@@ -26,7 +26,10 @@ import os
 import time
 from typing import Any, Dict, List, Optional
 
+from dotenv import load_dotenv
 from openai import OpenAI
+
+load_dotenv()
 
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MODEL = "google/gemini-2.0-flash-001"
@@ -176,10 +179,12 @@ class RewardGuidedLLMPolicy:
         top_k_examples: int = 3,
     ):
         api_key = (
-            os.getenv("OPENROUTER_API_KEY")
+            os.getenv("OPENROUTER_API_KEY_REWARD")
+            or os.getenv("OPENROUTER_API_KEY")
             or os.getenv("OPENAI_API_KEY")
-            or "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"
         )
+        if not api_key:
+            raise ValueError("Set OPENROUTER_API_KEY_REWARD or OPENROUTER_API_KEY in .env or environment")
         base_url = os.getenv("OPENAI_BASE_URL", DEFAULT_BASE_URL)
         self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=30.0)
         self._model = os.getenv("MODEL_NAME", DEFAULT_MODEL)

@@ -7,7 +7,10 @@ import os
 import time
 from typing import Any, Dict, List
 
+from dotenv import load_dotenv
 from openai import OpenAI
+
+load_dotenv()
 
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MODEL = "google/gemini-2.0-flash-001"
@@ -18,8 +21,9 @@ class OpenAIPolicy:
         api_key = (
             os.getenv("OPENROUTER_API_KEY")
             or os.getenv("OPENAI_API_KEY")
-            or "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"
         )
+        if not api_key:
+            raise ValueError("Set OPENROUTER_API_KEY or OPENAI_API_KEY in .env or environment")
         base_url = os.getenv("OPENAI_BASE_URL", DEFAULT_BASE_URL)
         self._client = OpenAI(api_key=api_key, base_url=base_url)
         self._model = os.getenv("MODEL_NAME", DEFAULT_MODEL)
