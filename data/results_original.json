@@ -1,0 +1,104 @@
+{
+  "config": "original",
+  "max_offer_price": 500.0,
+  "eval_episodes": 50,
+  "train_episodes": 3000,
+  "tasks": {
+    "easy": {
+      "Midpoint": {
+        "completion_rate": 0.84,
+        "cancellation_rate": 0.0,
+        "rider_cancellations": 0,
+        "driver_cancellations": 0,
+        "timeout_rate": 0.16,
+        "avg_reward": 5.0099,
+        "avg_profit": 2.1801,
+        "avg_steps": 2.86
+      },
+      "Adaptive": {
+        "completion_rate": 1.0,
+        "cancellation_rate": 0.0,
+        "rider_cancellations": 0,
+        "driver_cancellations": 0,
+        "timeout_rate": 0.0,
+        "avg_reward": 6.186,
+        "avg_profit": 2.0817,
+        "avg_steps": 1.6
+      },
+      "Q-Learning": {
+        "completion_rate": 0.98,
+        "cancellation_rate": 0.0,
+        "rider_cancellations": 0,
+        "driver_cancellations": 0,
+        "timeout_rate": 0.02,
+        "avg_reward": 5.457,
+        "avg_profit": 2.1193,
+        "avg_steps": 2.4
+      }
+    },
+    "medium": {
+      "Midpoint": {
+        "completion_rate": 0.68,
+        "cancellation_rate": 0.04,
+        "rider_cancellations": 0,
+        "driver_cancellations": 2,
+        "timeout_rate": 0.28,
+        "avg_reward": 9.47,
+        "avg_profit": 5.9007,
+        "avg_steps": 2.88
+      },
+      "Adaptive": {
+        "completion_rate": 0.82,
+        "cancellation_rate": 0.0,
+        "rider_cancellations": 0,
+        "driver_cancellations": 0,
+        "timeout_rate": 0.18,
+        "avg_reward": 8.4615,
+        "avg_profit": 4.943,
+        "avg_steps": 3.12
+      },
+      "Q-Learning": {
+        "completion_rate": 0.76,
+        "cancellation_rate": 0.02,
+        "rider_cancellations": 0,
+        "driver_cancellations": 1,
+        "timeout_rate": 0.22,
+        "avg_reward": 7.7779,
+        "avg_profit": 5.2084,
+        "avg_steps": 3.36
+      }
+    },
+    "hard": {
+      "Midpoint": {
+        "completion_rate": 0.0,
+        "cancellation_rate": 0.56,
+        "rider_cancellations": 14,
+        "driver_cancellations": 15,
+        "timeout_rate": 0.44,
+        "avg_reward": -3.655,
+        "avg_profit": 0.0,
+        "avg_steps": 2.9
+      },
+      "Adaptive": {
+        "completion_rate": 0.0,
+        "cancellation_rate": 0.22,
+        "rider_cancellations": 7,
+        "driver_cancellations": 5,
+        "timeout_rate": 0.78,
+        "avg_reward": -2.623,
+        "avg_profit": 0.0,
+        "avg_steps": 2.94
+      },
+      "Q-Learning": {
+        "completion_rate": 0.0,
+        "cancellation_rate": 0.14,
+        "rider_cancellations": 1,
+        "driver_cancellations": 6,
+        "timeout_rate": 0.86,
+        "avg_reward": -2.331,
+        "avg_profit": 0.0,
+        "avg_steps": 2.98
+      }
+    }
+  }
+}

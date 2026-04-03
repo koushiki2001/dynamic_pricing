@@ -1,0 +1,41 @@
+[
+  {
+    "id": "easy",
+    "name": "Friendly Market",
+    "difficulty": "easy",
+    "description": "Balanced scenarios with small price gaps, high patience, wide hidden overlap.",
+    "num_eval_episodes": 120,
+    "seed": 42,
+    "max_steps": 8,
+    "success_metrics": {
+      "target_completion_rate": 0.80,
+      "target_avg_reward": 5.0
+    }
+  },
+  {
+    "id": "medium",
+    "name": "Rush Hour Negotiation",
+    "difficulty": "medium",
+    "description": "Rain, high demand, moderate gaps, narrow overlap, misleading surge signal.",
+    "num_eval_episodes": 140,
+    "seed": 84,
+    "max_steps": 5,
+    "success_metrics": {
+      "target_completion_rate": 0.65,
+      "target_avg_reward": 3.0
+    }
+  },
+  {
+    "id": "hard",
+    "name": "Storm Surge Standoff",
+    "difficulty": "hard",
+    "description": "Storm, extreme conditions, large gaps, very narrow or no overlap, low patience.",
+    "num_eval_episodes": 160,
+    "seed": 168,
+    "max_steps": 3,
+    "success_metrics": {
+      "target_completion_rate": 0.45,
+      "target_avg_reward": 1.0
+    }
+  }
+]

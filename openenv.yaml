@@ -1,7 +1,78 @@
-spec_version: 1
-name: dynamic_pricing_env
-type: space
-runtime: fastapi
-app: server.app:app
-port: 8000
+name: ride_hailing_dynamic_pricing
+version: 0.1.0
+description: |
+  Multi-step ride-hailing pricing negotiation environment.
+  The agent plays the platform, proposing prices each round.
+  Rider and driver independently accept or reject.
+  Episode ends on mutual acceptance, cancellation, or timeout.
+  Fewer negotiation steps to agreement = higher reward.
 
+entry_point: ride_hailing_env.environment:DynamicPricingEnv
+
+observation_space:
+  type: object
+  properties:
+    rider_quoted_price: {type: number, minimum: 0, maximum: 500}
+    driver_quoted_price: {type: number, minimum: 0, maximum: 500}
+    price_gap: {type: number, minimum: 0, maximum: 500}
+    distance_km: {type: number, minimum: 0.1, maximum: 100}
+    estimated_duration_min: {type: number, minimum: 1, maximum: 240}
+    pickup_eta_min: {type: number, minimum: 0, maximum: 60}
+    demand_level: {type: integer, minimum: 0, maximum: 2}
+    supply_level: {type: integer, minimum: 0, maximum: 2}
+    surge_multiplier: {type: number, minimum: 1.0, maximum: 3.0}
+    weather_condition: {type: integer, minimum: 0, maximum: 2}
+    traffic_level: {type: integer, minimum: 0, maximum: 2}
+    time_of_day: {type: integer, minimum: 0, maximum: 3}
+    day_type: {type: integer, minimum: 0, maximum: 2}
+    commission_rate: {type: number, minimum: 0, maximum: 0.5}
+    operational_cost: {type: number, minimum: 0, maximum: 100}
+    max_steps: {type: integer, minimum: 1, maximum: 10}
+    step_number: {type: integer, minimum: 0, maximum: 10}
+    rider_patience: {type: number, minimum: 0, maximum: 1}
+    driver_patience: {type: number, minimum: 0, maximum: 1}
+    rider_mood: {type: string, enum: ["willing", "hesitant", "frustrated"]}
+    driver_mood: {type: string, enum: ["willing", "hesitant", "frustrated"]}
+    last_rider_response: {type: string, enum: ["accepted", "rejected", null]}
+    last_driver_response: {type: string, enum: ["accepted", "rejected", null]}
+    last_proposed_price: {type: number, minimum: 0, maximum: 500, nullable: true}
+
+action_space:
+  type: object
+  required: [type, payload]
+  properties:
+    type: {type: string, enum: ["propose_price"]}
+    payload:
+      type: object
+      required: [price]
+      properties:
+        price: {type: number, minimum: 1, maximum: 500}
+
+reward_range: [-5.0, 50.0]
+max_episode_steps: 8
+
+tasks:
+  - id: easy
+    name: Friendly Market
+    difficulty: easy
+    description: >
+      Balanced scenarios with small price gaps ($3-5), high patience (8 steps),
+      wide hidden overlap. Tests basic price discovery.
+    grader: grade_easy
+  - id: medium
+    name: Rush Hour Negotiation
+    difficulty: medium
+    description: >
+      Rain, high demand, moderate gaps ($8-12), narrow overlap ($3-4 window),
+      misleading surge signal. 5 steps max.
+    grader: grade_medium
+  - id: hard
+    name: Storm Surge Standoff
+    difficulty: hard
+    description: >
+      Storm, extreme conditions, large gaps ($15-20), very narrow or no overlap,
+      low patience (3 steps). Tests graceful failure handling.
+    grader: grade_hard
+
+graders:
+  module: ride_hailing_env.tasks.graders

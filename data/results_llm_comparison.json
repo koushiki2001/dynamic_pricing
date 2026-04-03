@@ -1,0 +1,197 @@
+{
+  "hard": {
+    "reward_guided_llm": {
+      "policy": "Reward-Guided LLM",
+      "task": "hard",
+      "episodes": [
+        {
+          "episode": 1,
+          "seed": 55556,
+          "steps": [
+            {
+              "step": 1,
+              "price": 44.0,
+              "rider": "rejected",
+              "driver": "accepted",
+              "reward": 0.05,
+              "latency_s": 73.51
+            },
+            {
+              "step": 2,
+              "price": 44.0,
+              "rider": "rejected",
+              "driver": "accepted",
+              "reward": 0.05,
+              "latency_s": 2.18
+            },
+            {
+              "step": 3,
+              "price": 35.0,
+              "rider": "accepted",
+              "driver": "rejected",
+              "reward": -2.0,
+              "latency_s": 1.37
+            }
+          ],
+          "outcome": "timeout",
+          "final_price": null,
+          "episode_reward": -1.9
+        },
+        {
+          "episode": 2,
+          "seed": 55557,
+          "steps": [
+            {
+              "step": 1,
+              "price": 34.59,
+              "rider": "rejected",
+              "driver": "accepted",
+              "reward": 0.05,
+              "latency_s": 17.77
+            },
+            {
+              "step": 2,
+              "price": 34.59,
+              "rider": "accepted",
+              "driver": "accepted",
+              "reward": 9.8117,
+              "latency_s": 35.98
+            }
+          ],
+          "outcome": "completed",
+          "final_price": 34.59,
+          "episode_reward": 9.8617
+        },
+        {
+          "episode": 3,
+          "seed": 55558,
+          "steps": [
+            {
+              "step": 1,
+              "price": 78.76,
+              "rider": "accepted",
+              "driver": "accepted",
+              "reward": 67.4724,
+              "latency_s": 82.45
+            }
+          ],
+          "outcome": "completed",
+          "final_price": 78.76,
+          "episode_reward": 67.4724
+        },
+        {
+          "episode": 4,
+          "seed": 55559,
+          "steps": [
+            {
+              "step": 1,
+              "price": 47.5,
+              "rider": "accepted",
+              "driver": "accepted",
+              "reward": 15.765,
+              "latency_s": 46.37
+            }
+          ],
+          "outcome": "completed",
+          "final_price": 47.5,
+          "episode_reward": 15.765
+        },
+        {
+          "episode": 5,
+          "seed": 55560,
+          "steps": [
+            {
+              "step": 1,
+              "price": 22.59,
+              "rider": "rejected",
+              "driver": "accepted",
+              "reward": 0.05,
+              "latency_s": 39.89
+            },
+            {
+              "step": 2,
+              "price": 22.59,
+              "rider": "rejected",
+              "driver": "accepted",
+              "reward": 0.05,
+              "latency_s": 39.98
+            },
+            {
+              "step": 3,
+              "price": 22.59,
+              "rider": "accepted",
+              "driver": "accepted",
+              "reward": 3.7006,
+              "latency_s": 11.05
+            }
+          ],
+          "outcome": "completed",
+          "final_price": 22.59,
+          "episode_reward": 3.8006
+        },
+        {
+          "episode": 6,
+          "seed": 55561,
+          "steps": [
+            {
+              "step": 1,
+              "price": 48.27,
+              "rider": "accepted",
+              "driver": "accepted",
+              "reward": 39.3654,
+              "latency_s": 54.97
+            }
+          ],
+          "outcome": "completed",
+          "final_price": 48.27,
+          "episode_reward": 39.3654
+        },
+        {
+          "episode": 7,
+          "seed": 55562,
+          "steps": [
+            {
+              "step": 1,
+              "price": 23.93,
+              "rider": "accepted",
+              "driver": "accepted",
+              "reward": 10.8033,
+              "latency_s": 30.11
+            }
+          ],
+          "outcome": "completed",
+          "final_price": 23.93,
+          "episode_reward": 10.8033
+        },
+        {
+          "episode": 8,
+          "seed": 55563,
+          "steps": [
+            {
+              "step": 1,
+              "price": 48.53,
+              "rider": "accepted",
+              "driver": "accepted",
+              "reward": 33.7911,
+              "latency_s": 30.05
+            }
+          ],
+          "outcome": "completed",
+          "final_price": 48.53,
+          "episode_reward": 33.7911
+        }
+      ],
+      "num_episodes": 8,
+      "summary": {
+        "completion_rate": 0.875,
+        "cancellation_rate": 0.0,
+        "rider_cancellations": 0,
+        "driver_cancellations": 0,
+        "timeout_rate": 0.125,
+        "avg_reward": 22.3699,
+        "avg_profit": 9.4249,
+        "avg_steps": 1.62
+      }
+    }
+  }
+}
