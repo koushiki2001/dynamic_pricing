@@ -114,6 +114,21 @@ app = FastAPI(title="Ride-Hailing Dynamic Pricing Environment")
 env = DynamicPricingEnvironment()
 
 
+@app.get("/")
+def root():
+    return {
+        "name": "Ride-Hailing Dynamic Pricing Environment",
+        "status": "running",
+        "endpoints": {
+            "POST /reset": "Reset the environment and start a new episode",
+            "POST /step": "Take an action (decrease, hold, increase)",
+            "GET /state": "Get current environment state",
+            "GET /schema": "Get action/observation JSON schemas",
+            "GET /health": "Health check",
+        },
+    }
+
+
 @app.post("/reset")
 def reset():
     obs = env.reset()
