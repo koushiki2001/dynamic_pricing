@@ -8,11 +8,14 @@ Policies:
   3. Base LLM       — Gemini Flash zero-shot via OpenRouter
   4. Reward-Guided  — Gemini Flash + adaptive bounds + reward proxy
 
+With optional session context to let LLM policies learn across episodes.
+
 Usage:
     python3 scripts/compare_all_policies.py                  # 10 eps/task
     python3 scripts/compare_all_policies.py --episodes 20    # 20 eps/task
     python3 scripts/compare_all_policies.py --task hard      # hard only
     python3 scripts/compare_all_policies.py --no-llm         # skip LLM policies
+    python3 scripts/compare_all_policies.py --with-session   # enable session context
 """
 
 import argparse
@@ -29,18 +32,23 @@ from ride_hailing_env.tasks.graders import GRADER_WEIGHTS
 
 from baselines.midpoint_policy import midpoint_policy
 from baselines.adaptive_policy import AdaptivePolicy
+from baselines.session_manager import SessionManager
 
 
 # ── episode runner (handles duplicate-price guard + stateful reset) ───
-def run_episode(env, policy_fn, reset_fn=None):
-    """Run one episode, return (outcome_dict, step_count, prices_list)."""
+def run_episode(env, policy_fn, reset_fn=None, session_manager=None):
+    """Run one episode, return (outcome_dict, step_count, prices_list, total_reward)."""
     obs = env.reset()
     if reset_fn:
         reset_fn()
+    if session_manager:
+        session_manager.reset_episode(task_difficulty=env.task_name)
+    
     done = False
     prices = []
     iters = 0
     result = None
+    total_reward = 0.0
 
     while not done and iters < 60:
         iters += 1
@@ -59,13 +67,38 @@ def run_episode(env, policy_fn, reset_fn=None):
                 result = env.step(action)
 
         prices.append(round(action["payload"]["price"], 2))
+        total_reward += result.reward
+        
+        # Log to session if available
+        if session_manager:
+            obs_dict = result.observation.model_dump()
+            session_manager.log_step(
+                step_number=obs_dict["step_number"],
+                proposed_price=action["payload"]["price"],
+                rider_response=obs_dict.get("last_rider_response"),
+                driver_response=obs_dict.get("last_driver_response"),
+                step_reward=result.reward,
+                observation=obs_dict,
+            )
+        
         obs = result.observation
         done = result.done
 
-    return result, prices
+    # Log episode completion
+    if session_manager:
+        outcome = result.info.get("outcome", {})
+        session_manager.log_episode(
+            episode_reward=total_reward,
+            completed=outcome.get("ride_completed", False),
+            termination_reason=outcome.get("termination_reason", "unknown"),
+            initial_price_gap=float(outcome.get("initial_price_gap", 0)),
+            final_proposed_price=prices[-1] if prices else None,
+        )
+
+    return result, prices, total_reward
 
 
-def grade_policy(task_name, policy_fn, reset_fn, num_episodes, seed):
+def grade_policy(task_name, policy_fn, reset_fn, num_episodes, seed, session_manager=None):
     """Run num_episodes and compute the official grader score."""
     cfg = TASK_CONFIG[task_name]
 
@@ -81,8 +114,9 @@ def grade_policy(task_name, policy_fn, reset_fn, num_episodes, seed):
     for ep in range(num_episodes):
         ep_seed = seed + ep
         env = DynamicPricingEnv(task_name=task_name, seed=ep_seed)
-        result, prices = run_episode(env, policy_fn, reset_fn)
+        result, prices, ep_reward = run_episode(env, policy_fn, reset_fn, session_manager)
         all_prices.append(prices)
+        total_reward += ep_reward
 
         outcome = result.info["outcome"]
         if outcome["ride_completed"]:
@@ -134,16 +168,16 @@ def make_adaptive():
     pol = AdaptivePolicy()
     return lambda od: pol(od), pol.reset, "Adaptive"
 
-def make_base_llm():
+def make_base_llm(session_manager=None):
     from baselines.openai_policy import OpenAIPolicy
-    pol = OpenAIPolicy()
+    pol = OpenAIPolicy(session_manager=session_manager)
     return lambda od: pol(od), pol.reset, "Base LLM"
 
-def make_reward_guided():
+def make_reward_guided(session_manager=None):
     from baselines.reward_guided_llm_policy import RewardGuidedLLMPolicy
     data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
     # experience_path is per-task, set in the loop
-    pol = RewardGuidedLLMPolicy()
+    pol = RewardGuidedLLMPolicy(session_manager=session_manager)
     return lambda od: pol(od), pol.reset, "Reward-Guided LLM"
 
 
@@ -156,6 +190,8 @@ def main():
                         choices=["easy", "medium", "hard", "all"])
     parser.add_argument("--no-llm", action="store_true",
                         help="Skip LLM policies (midpoint + adaptive only)")
+    parser.add_argument("--with-session", action="store_true",
+                        help="Enable cross-episode session context for LLM policies")
     parser.add_argument("--seed", type=int, default=None,
                         help="Override seed (default: per-task config seed)")
     args = parser.parse_args()
@@ -164,10 +200,8 @@ def main():
     n_eps = args.episodes
 
     # Build policy list
-    policy_makers = [make_midpoint, make_adaptive]
-    if not args.no_llm:
-        policy_makers += [make_base_llm, make_reward_guided]
-
+    # We'll instantiate policies per task to allow session managers
+    
     # ── Run all evaluations ──
     # results[task][policy_name] = {score, completion, ...}
     results = {}
@@ -180,15 +214,20 @@ def main():
 
         print(f"\n{'='*80}")
         print(f"  TASK: {task.upper()}  ({n_eps} episodes, seed={seed})")
+        if args.with_session:
+            print(f"  [Session context ENABLED for LLM policies]")
         print(f"{'='*80}")
 
-        for maker in policy_makers:
-            policy_fn, reset_fn, name = maker()
-            is_llm = "LLM" in name
+        # Create fresh session manager per task if enabled
+        session_manager = SessionManager(max_episodes=20) if args.with_session else None
+
+        # Non-LLM policies (no session needed)
+        for name, maker in [("Midpoint", make_midpoint), ("Adaptive", make_adaptive)]:
+            policy_fn, reset_fn, _ = maker()
 
             print(f"\n  Running {name}...", end=" ", flush=True)
             t0 = time.time()
-            r = grade_policy(task, policy_fn, reset_fn, n_eps, seed)
+            r = grade_policy(task, policy_fn, reset_fn, n_eps, seed, session_manager=None)
             elapsed = time.time() - t0
 
             results[task][name] = r
@@ -201,14 +240,48 @@ def main():
                 f"timeout={r['timeout']:.0%}  "
                 f"profit=${r['profit']:.2f}  "
                 f"steps={r['avg_steps']:.1f}"
-                + (f"  ({elapsed:.1f}s)" if is_llm else "")
             )
 
+        # LLM policies (with optional session)
+        if not args.no_llm:
+            for name, maker in [("Base LLM", make_base_llm), ("Reward-Guided LLM", make_reward_guided)]:
+                policy_fn, reset_fn, _ = maker(session_manager=session_manager)
+
+                print(f"\n  Running {name}...", end=" ", flush=True)
+                t0 = time.time()
+                r = grade_policy(task, policy_fn, reset_fn, n_eps, seed, session_manager=session_manager)
+                elapsed = time.time() - t0
+
+                results[task][name] = r
+                timings[task][name] = elapsed
+
+                session_info = " (with session)" if args.with_session else ""
+                print(
+                    f"score={r['score']:.4f}  "
+                    f"compl={r['completion']:.0%}  "
+                    f"cancel={r['cancel']:.0%}  "
+                    f"timeout={r['timeout']:.0%}  "
+                    f"profit=${r['profit']:.2f}  "
+                    f"steps={r['avg_steps']:.1f}  ({elapsed:.1f}s){session_info}"
+                )
+        
+        # Print session summary if enabled
+        if args.with_session and session_manager:
+            summary = session_manager.get_session_summary()
+            print(f"\n  SESSION SUMMARY for {task}:")
+            print(f"    Episodes: {summary.get('episode_count', 0)}")
+            print(f"    Success rate: {summary.get('success_rate', 'N/A')}")
+            print(f"    Avg reward: {summary.get('average_reward', 0):.3f}")
+
     # ── Print comparison table ──
-    policy_names = [maker()[2] for maker in policy_makers]
+    policy_names = ["Midpoint", "Adaptive"]
+    if not args.no_llm:
+        policy_names.extend(["Base LLM", "Reward-Guided LLM"])
 
     print(f"\n\n{'='*100}")
     print(f"  COMPARISON TABLE — Official Grader Scores")
+    if args.with_session:
+        print(f"  [LLM policies with CROSS-EPISODE SESSION CONTEXT]")
     print(f"  Weights: Easy(compl=0.40 eff=0.30 profit=0.20 nocancel=0.10)")
     print(f"           Med (compl=0.30 eff=0.25 profit=0.30 nocancel=0.15)")
     print(f"           Hard(compl=0.25 eff=0.20 profit=0.35 nocancel=0.20)")

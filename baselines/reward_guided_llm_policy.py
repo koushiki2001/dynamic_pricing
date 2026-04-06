@@ -177,6 +177,7 @@ class RewardGuidedLLMPolicy:
         experience_path: Optional[str] = None,
         n_candidates: int = 1,
         top_k_examples: int = 3,
+        session_manager: Optional[Any] = None,
     ):
         api_key = (
             os.getenv("OPENROUTER_API_KEY_REWARD")
@@ -197,6 +198,7 @@ class RewardGuidedLLMPolicy:
         self._low_bound = 0.0
         self._high_bound = 0.0
         self._last_price: Optional[float] = None
+        self.session_manager = session_manager
 
     def reset(self):
         self._history = []
@@ -453,6 +455,39 @@ class RewardGuidedLLMPolicy:
                     f"steps={ex.get('steps_taken', '?')}"
                 )
 
+        # Session context from cross-episode learning
+        if self.session_manager:
+            session_summary = self.session_manager.get_session_summary(recent_episodes=5)
+            if session_summary.get("episode_count", 0) > 0:
+                lines.append("\n=== CROSS-EPISODE SESSION LEARNING ===")
+                lines.append(f"Episodes completed: {session_summary.get('episode_count', 0)}")
+                lines.append(f"Success rate: {session_summary.get('success_rate', 'N/A')}")
+                lines.append(f"Average episode reward: {session_summary.get('average_reward', 0):.3f}")
+                
+                patterns = session_summary.get("patterns", {})
+                if patterns.get("successful_price_range"):
+                    sr = patterns["successful_price_range"]
+                    lines.append(
+                        f"Winning price range: ${sr['min']:.2f} - ${sr['max']:.2f} "
+                        f"(mean: ${sr['mean']:.2f})"
+                    )
+                
+                if patterns.get("rejected_price_range"):
+                    jr = patterns["rejected_price_range"]
+                    lines.append(
+                        f"Rejected price range: ${jr['min']:.2f} - ${jr['max']:.2f} "
+                        f"(mean: ${jr['mean']:.2f})"
+                    )
+                
+                reward_breakdown = session_summary.get("reward_breakdown", {})
+                if reward_breakdown:
+                    lines.append(f"Avg step reward: {reward_breakdown.get('average_step_reward', 0):.3f}")
+                
+                insights = session_summary.get("cross_episode_insights", [])
+                if insights:
+                    for insight in insights[:2]:
+                        lines.append(f"  → {insight}")
+
         # Urgency
         rider_p = obs["rider_patience"]
         driver_p = obs["driver_patience"]
@@ -481,5 +516,9 @@ class RewardGuidedLLMPolicy:
 
 def reward_guided_llm_factory(
     experience_path: Optional[str] = None,
+    session_manager: Optional[Any] = None,
 ) -> RewardGuidedLLMPolicy:
-    return RewardGuidedLLMPolicy(experience_path=experience_path)
+    return RewardGuidedLLMPolicy(
+        experience_path=experience_path,
+        session_manager=session_manager,
+    )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -17,7 +17,7 @@ DEFAULT_MODEL = "google/gemini-2.0-flash-001"
 
 
 class OpenAIPolicy:
-    def __init__(self):
+    def __init__(self, session_manager: Optional[Any] = None):
         api_key = (
             os.getenv("OPENROUTER_API_KEY")
             or os.getenv("OPENAI_API_KEY")
@@ -28,6 +28,7 @@ class OpenAIPolicy:
         self._client = OpenAI(api_key=api_key, base_url=base_url)
         self._model = os.getenv("MODEL_NAME", DEFAULT_MODEL)
         self._history: List[Dict[str, Any]] = []
+        self.session_manager = session_manager
 
     def reset(self):
         self._history = []
@@ -92,6 +93,39 @@ class OpenAIPolicy:
         if len(self._history) > 1:
             lines.append(f"\nPrevious steps: {len(self._history) - 1}")
 
+        # Add session context if available
+        if self.session_manager:
+            session_summary = self.session_manager.get_session_summary(recent_episodes=5)
+            if session_summary.get("episode_count", 0) > 0:
+                lines.extend([
+                    f"",
+                    f"=== CROSS-EPISODE SESSION CONTEXT ===",
+                    f"Episodes completed: {session_summary.get('episode_count', 0)}",
+                    f"Success rate: {session_summary.get('success_rate', 'N/A')}",
+                    f"Average reward: {session_summary.get('average_reward', 0):.3f}",
+                ])
+                
+                patterns = session_summary.get("patterns", {})
+                if patterns.get("successful_price_range"):
+                    sr = patterns["successful_price_range"]
+                    lines.append(
+                        f"Prices that worked: ${sr['min']:.2f} - ${sr['max']:.2f} "
+                        f"(mean: ${sr['mean']:.2f})"
+                    )
+                
+                if patterns.get("rejected_price_range"):
+                    jr = patterns["rejected_price_range"]
+                    lines.append(
+                        f"Prices that failed: ${jr['min']:.2f} - ${jr['max']:.2f} "
+                        f"(mean: ${jr['mean']:.2f})"
+                    )
+                
+                insights = session_summary.get("cross_episode_insights", [])
+                if insights:
+                    lines.append(f"Key insights:")
+                    for insight in insights[:2]:  # Limit to top 2 insights
+                        lines.append(f"  • {insight}")
+
         lines.extend([
             f"",
             f"Propose a price. Respond with JSON: {{\"price\": <number>}}",
@@ -116,5 +150,5 @@ class OpenAIPolicy:
         return {"type": "propose_price", "payload": {"price": round(price, 2)}}
 
 
-def openai_policy_factory() -> OpenAIPolicy:
-    return OpenAIPolicy()
+def openai_policy_factory(session_manager: Optional[Any] = None) -> OpenAIPolicy:
+    return OpenAIPolicy(session_manager=session_manager)
