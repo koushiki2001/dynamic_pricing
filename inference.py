@@ -11,6 +11,11 @@ Usage:
     API_BASE_URL=https://openrouter.ai/api/v1 MODEL_NAME=google/gemini-2.0-flash-001 HF_TOKEN=sk-... python inference.py
 """
 
+
+# Ensure required environment variables are set for local runs
+os.environ.setdefault("API_BASE_URL", "https://router.huggingface.co/v1")
+os.environ.setdefault("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
+
 from __future__ import annotations
 
 import os
