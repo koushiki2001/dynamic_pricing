@@ -19,12 +19,14 @@ DEFAULT_MODEL = "google/gemini-2.0-flash-001"
 class OpenAIPolicy:
     def __init__(self, session_manager: Optional[Any] = None):
         api_key = (
-            os.getenv("OPENROUTER_API_KEY")
+            os.getenv("HF_TOKEN")
+            or os.getenv("OPENROUTER_API_KEY")
             or os.getenv("OPENAI_API_KEY")
         )
         if not api_key:
-            raise ValueError("Set OPENROUTER_API_KEY or OPENAI_API_KEY in .env or environment")
-        base_url = os.getenv("OPENAI_BASE_URL", DEFAULT_BASE_URL)
+            raise ValueError("Set HF_TOKEN, OPENROUTER_API_KEY, or OPENAI_API_KEY in .env or environment")
+        base_url = os.getenv("API_BASE_URL") or os.getenv("OPENAI_BASE_URL", DEFAULT_BASE_URL)
+        print(f"[LLM-INIT] base_url={base_url} model={os.getenv('MODEL_NAME', DEFAULT_MODEL)} api_key={api_key[:8]}...{api_key[-4:]}")
         self._client = OpenAI(api_key=api_key, base_url=base_url)
         self._model = os.getenv("MODEL_NAME", DEFAULT_MODEL)
         self._history: List[Dict[str, Any]] = []
@@ -46,6 +48,7 @@ class OpenAIPolicy:
         # Retry up to 3 times for free-tier rate limits / empty responses
         for attempt in range(3):
             try:
+                print(f"[LLM-REQ] attempt={attempt+1} model={self._model} step={obs['step_number']}")
                 response = self._client.chat.completions.create(
                     model=self._model,
                     messages=messages,
@@ -53,12 +56,16 @@ class OpenAIPolicy:
                     max_tokens=100,
                 )
                 content = response.choices[0].message.content
+                print(f"[LLM-RESP] content={content!r} usage={getattr(response, 'usage', None)}")
                 if content:
                     return self._parse_response(content, obs)
-            except Exception:
-                pass
+                else:
+                    print(f"[LLM-WARN] Empty response from model")
+            except Exception as e:
+                print(f"[LLM-ERR] attempt={attempt+1} error={type(e).__name__}: {e}")
             time.sleep(1.0 * (attempt + 1))
 
+        print(f"[LLM-FALLBACK] All attempts failed, using midpoint={fallback:.2f}")
         return {"type": "propose_price", "payload": {"price": round(fallback, 2)}}
 
     def _build_prompt(self, obs: Dict[str, Any]) -> str:

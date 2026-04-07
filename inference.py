@@ -2,11 +2,13 @@
 
 This is the ROOT inference.py required by the HF Space validator.
 
-Usage:
-    OPENROUTER_API_KEY=sk-or-... python inference.py
-    OPENROUTER_API_KEY=sk-or-... MODEL_NAME=openrouter/free python inference.py
+Required environment variables:
+    API_BASE_URL   The API endpoint for the LLM.
+    MODEL_NAME     The model identifier to use for inference.
+    HF_TOKEN       Your Hugging Face / API key.
 
-Runs the LLM agent (via OpenRouter) against all 3 tasks and reports scores.
+Usage:
+    API_BASE_URL=https://openrouter.ai/api/v1 MODEL_NAME=google/gemini-2.0-flash-001 HF_TOKEN=sk-... python inference.py
 """
 
 from __future__ import annotations
@@ -42,12 +44,40 @@ def run_inference(task_name: str, num_episodes: int = 20, seed: int | None = Non
         obs = env.reset()
         done = False
         episode_reward = 0.0
+        step_num = 0
 
         policy.reset()
 
+        # [START] structured log
+        print(f"[START] task={task_name} episode={ep+1} seed={ep_seed}")
+
         while not done:
-            action = policy(obs.model_dump())
+            obs_dict = obs.model_dump()
+            action = policy(obs_dict)
             result = env.step(action)
+
+            # Handle duplicate-price rejection: nudge price to break the loop
+            if result.info.get("duplicate_price"):
+                p = action["payload"]["price"]
+                action["payload"]["price"] = round(p + 0.5, 2)
+                result = env.step(action)
+                if result.info.get("duplicate_price"):
+                    action["payload"]["price"] = round(p - 0.5, 2)
+                    result = env.step(action)
+                    if result.info.get("duplicate_price"):
+                        action["payload"]["price"] = round(p + 1.0, 2)
+                        result = env.step(action)
+
+            step_num += 1
+            price = action["payload"]["price"]
+            rider_resp = result.observation.last_rider_response or "none"
+            driver_resp = result.observation.last_driver_response or "none"
+
+            # [STEP] structured log
+            print(f"[STEP] task={task_name} episode={ep+1} step={step_num} "
+                  f"price={price:.2f} rider_response={rider_resp} "
+                  f"driver_response={driver_resp} reward={result.reward:.4f}")
+
             obs = result.observation
             done = result.done
             episode_reward += result.reward
@@ -55,11 +85,13 @@ def run_inference(task_name: str, num_episodes: int = 20, seed: int | None = Non
         total_reward += episode_reward
         outcome = result.info["outcome"]
 
-        status = outcome["termination_reason"]
-        steps = outcome["steps_taken"]
-        profit_str = f"${outcome['platform_profit']:.2f}" if outcome["platform_profit"] else "N/A"
-        print(f"  Episode {ep+1:3d}/{num_episodes}: {status:>10s}  "
-              f"steps={steps}  profit={profit_str}  reward={episode_reward:.4f}")
+        # [END] structured log
+        profit_val = outcome.get("platform_profit") or 0.0
+        print(f"[END] task={task_name} episode={ep+1} "
+              f"outcome={outcome['termination_reason']} "
+              f"steps={outcome['steps_taken']} "
+              f"profit={profit_val:.2f} "
+              f"reward={episode_reward:.4f}")
 
         if outcome["ride_completed"]:
             total_completed += 1
@@ -100,34 +132,35 @@ def run_inference(task_name: str, num_episodes: int = 20, seed: int | None = Non
 
 
 def main():
-    if not (os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")):
-        print("ERROR: Set OPENROUTER_API_KEY (or OPENAI_API_KEY) environment variable.")
+    if not os.getenv("HF_TOKEN"):
+        print("ERROR: Set HF_TOKEN environment variable.")
+        sys.exit(1)
+    if not os.getenv("API_BASE_URL"):
+        print("ERROR: Set API_BASE_URL environment variable.")
+        sys.exit(1)
+    if not os.getenv("MODEL_NAME"):
+        print("ERROR: Set MODEL_NAME environment variable.")
         sys.exit(1)
 
-    # Use fewer episodes for inference (API cost), more for final eval
     num_episodes = int(os.getenv("NUM_EPISODES", "20"))
     tasks = ["easy", "medium", "hard"]
 
-    print("=" * 70)
-    print("LLM BASELINE INFERENCE (OpenRouter)")
-    print(f"Model: {os.getenv('MODEL_NAME', 'openrouter/free')}")
-    print(f"Episodes per task: {num_episodes}")
-    print("=" * 70)
+    print(f"[CONFIG] api_base_url={os.environ['API_BASE_URL']} "
+          f"model={os.environ['MODEL_NAME']} "
+          f"episodes_per_task={num_episodes}")
 
     all_scores = []
     for task in tasks:
-        print(f"\n--- Task: {task} ---")
         result = run_inference(task, num_episodes=num_episodes)
         all_scores.append(result["score"])
-        print(f"\n  SCORE: {result['score']:.4f}  "
-              f"completion={result['completion_rate']:.2%}  "
-              f"cancel={result['cancellation_rate']:.2%}  "
-              f"profit=${result['avg_profit']:.2f}  "
+        print(f"[RESULT] task={task} score={result['score']:.4f} "
+              f"completion_rate={result['completion_rate']:.4f} "
+              f"cancellation_rate={result['cancellation_rate']:.4f} "
+              f"avg_profit={result['avg_profit']:.2f} "
               f"avg_reward={result['avg_reward']:.4f}")
 
-    print("\n" + "=" * 70)
-    print(f"FINAL AVERAGE SCORE: {sum(all_scores)/len(all_scores):.4f}")
-    print("=" * 70)
+    avg_score = sum(all_scores) / len(all_scores)
+    print(f"[FINAL] average_score={avg_score:.4f}")
 
 
 if __name__ == "__main__":
