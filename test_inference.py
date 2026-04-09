@@ -1,14 +1,10 @@
-"""LLM baseline inference script (hackathon requirement).
+"""Local test inference script — same logic as inference.py, loads credentials from .env.
 
-This is the ROOT inference.py required by the HF Space validator.
-
-Required environment variables:
-    API_BASE_URL   The API endpoint for the LLM.
-    MODEL_NAME     The model identifier to use for inference.
-    HF_TOKEN       Your Hugging Face / API key.
+Use this for local testing. Do NOT submit this file — inference.py is the submission entry point.
 
 Usage:
-    API_BASE_URL=https://openrouter.ai/api/v1 MODEL_NAME=google/gemini-2.0-flash-001 HF_TOKEN=sk-... python inference.py
+    python test_inference.py
+    NUM_EPISODES=5 python test_inference.py
 """
 
 from __future__ import annotations
@@ -16,10 +12,10 @@ from __future__ import annotations
 import os
 import sys
 
-# Ensure required environment variables are set for local runs
-os.environ.setdefault("API_BASE_URL", "https://router.huggingface.co/v1")
-os.environ.setdefault("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
+from dotenv import load_dotenv
 
+# Load credentials from .env before anything else
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"), override=True)
 
 from ride_hailing_env.config import TASK_CONFIG
 from ride_hailing_env.environment import DynamicPricingEnv
@@ -141,13 +137,13 @@ def run_inference(task_name: str, num_episodes: int = 20, seed: int | None = Non
 
 def main():
     if not os.getenv("HF_TOKEN"):
-        print("ERROR: Set HF_TOKEN environment variable.")
+        print("ERROR: HF_TOKEN not found. Check your .env file.")
         sys.exit(1)
     if not os.getenv("API_BASE_URL"):
-        print("ERROR: Set API_BASE_URL environment variable.")
+        print("ERROR: API_BASE_URL not found. Check your .env file.")
         sys.exit(1)
     if not os.getenv("MODEL_NAME"):
-        print("ERROR: Set MODEL_NAME environment variable.")
+        print("ERROR: MODEL_NAME not found. Check your .env file.")
         sys.exit(1)
 
     num_episodes = int(os.getenv("NUM_EPISODES", "20"))

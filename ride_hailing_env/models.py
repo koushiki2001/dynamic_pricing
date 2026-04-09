@@ -37,14 +37,27 @@ class Observation(BaseModel):
 
 
 class HiddenState(BaseModel):
-    """Hidden state the agent cannot observe."""
+    """Hidden state the agent cannot observe.
+
+    rider_max_willingness and driver_min_willingness are fixed for the entire
+    episode — noise is baked in at scenario generation time, making per-step
+    acceptance fully deterministic.
+
+    rider_noise_bound: the unpredictability magnitude of this rider (how far
+        their true ceiling was shifted from the base willingness). Used to
+        derive penalty_threshold — a more unpredictable rider earns more slack.
+    reward_threshold: minimum terminal reward the agent must exceed for a pass.
+    penalty_threshold: maximum missed revenue (rider_max_willingness - price)
+        the agent is allowed before the episode counts as a fail.
+    """
 
     rider_max_willingness: float = Field(..., ge=0.0)
     driver_min_willingness: float = Field(..., ge=0.0)
     rider_patience_decay: float = Field(..., ge=0.0, le=1.0)
     driver_patience_decay: float = Field(..., ge=0.0, le=1.0)
-    rider_acceptance_noise: float = Field(..., ge=0.0)
-    driver_acceptance_noise: float = Field(..., ge=0.0)
+    rider_noise_bound: float = Field(..., ge=0.0)
+    reward_threshold: float = Field(...)
+    penalty_threshold: float = Field(..., ge=0.0)
 
 
 class Action(BaseModel):

@@ -94,9 +94,19 @@ class ScenarioGenerator:
         rider_patience_decay = rng.uniform(*cfg["rider_patience_decay_range"])
         driver_patience_decay = rng.uniform(*cfg["driver_patience_decay_range"])
 
-        # Acceptance noise
-        rider_noise = rng.uniform(*cfg["acceptance_noise_range"])
-        driver_noise = rng.uniform(*cfg["acceptance_noise_range"])
+        # Acceptance noise: drawn once and folded into the fixed thresholds
+        # so that per-episode success/failure criteria are deterministic.
+        rider_noise_bound = rng.uniform(*cfg["acceptance_noise_range"])
+        driver_noise_bound = rng.uniform(*cfg["acceptance_noise_range"])
+        rider_max_willingness += rng.uniform(-rider_noise_bound, rider_noise_bound)
+        driver_min_willingness += rng.uniform(-driver_noise_bound, driver_noise_bound)
+        # Re-clamp after noise shift
+        driver_min_willingness = max(driver_min_willingness, 0.0)
+
+        # Per-scenario pass/fail thresholds
+        max_possible_profit = rider_max_willingness * commission - op_cost
+        reward_threshold = max_possible_profit * cfg["reward_threshold_fraction"]
+        penalty_threshold = rider_noise_bound * cfg["penalty_threshold_fraction"]
 
         observation = Observation(
             rider_quoted_price=round(rider_quote, 2),
@@ -130,8 +140,9 @@ class ScenarioGenerator:
             driver_min_willingness=round(driver_min_willingness, 2),
             rider_patience_decay=round(rider_patience_decay, 4),
             driver_patience_decay=round(driver_patience_decay, 4),
-            rider_acceptance_noise=round(rider_noise, 2),
-            driver_acceptance_noise=round(driver_noise, 2),
+            rider_noise_bound=round(rider_noise_bound, 4),
+            reward_threshold=round(reward_threshold, 4),
+            penalty_threshold=round(penalty_threshold, 4),
         )
 
         return observation, hidden

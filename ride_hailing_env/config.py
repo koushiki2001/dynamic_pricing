@@ -32,6 +32,8 @@ MOOD_HESITANT_THRESHOLD = 0.3
 # Difficulty = narrow acceptance zone + asymmetric offset + impatience + noise
 TASK_CONFIG = {
     "easy": {
+        "reward_threshold_fraction": 0.30,
+        "penalty_threshold_fraction": 1.00,
         "max_steps": 8,
         "rider_patience_init_range": (0.85, 1.0),
         "driver_patience_init_range": (0.85, 1.0),
@@ -58,6 +60,8 @@ TASK_CONFIG = {
         "seed": 42,
     },
     "medium": {
+        "reward_threshold_fraction": 0.50,
+        "penalty_threshold_fraction": 0.75,
         "max_steps": 5,
         "rider_patience_init_range": (0.75, 0.95),
         "driver_patience_init_range": (0.75, 0.95),
@@ -84,6 +88,8 @@ TASK_CONFIG = {
         "seed": 84,
     },
     "hard": {
+        "reward_threshold_fraction": 0.70,
+        "penalty_threshold_fraction": 0.50,
         "max_steps": 4,
         "rider_patience_init_range": (0.55, 0.85),
         "driver_patience_init_range": (0.55, 0.85),

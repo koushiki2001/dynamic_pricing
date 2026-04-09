@@ -268,13 +268,13 @@ def evaluate_agent(
     agent.epsilon = 0.0  # Greedy
 
     rng = np.random.default_rng(seed)
-    total_reward = 0.0
     total_completed = 0
     total_cancelled = 0
-    total_rider_cancelled = 0
-    total_driver_cancelled = 0
     total_timed_out = 0
-    total_steps = 0
+    total_profit = 0.0
+    total_penalty = 0.0
+    completed_count = 0
+    total_passed = 0
 
     for ep in range(num_episodes):
         ep_seed = seed + ep
@@ -296,43 +296,46 @@ def evaluate_agent(
             ep_reward += result.reward
             done = result.done
 
-        total_reward += ep_reward
+        agent.epsilon = old_epsilon  # Restore before next episode check
         outcome = result.info["outcome"]
-        total_steps += outcome["steps_taken"]
+        missed_revenue_penalty = result.info["missed_revenue_penalty"]
+        reward_threshold = result.info["reward_threshold"]
+        penalty_threshold = result.info["penalty_threshold"]
+
+        total_penalty += missed_revenue_penalty
+
+        episode_passed = (
+            outcome["ride_completed"]
+            and ep_reward > reward_threshold
+            and missed_revenue_penalty < penalty_threshold
+        )
+
         if outcome["ride_completed"]:
             total_completed += 1
+            completed_count += 1
+            total_profit += outcome["platform_profit"]
+            if episode_passed:
+                total_passed += 1
         elif outcome["timed_out"]:
             total_timed_out += 1
         else:
             total_cancelled += 1
-            if outcome.get("rider_cancelled"):
-                total_rider_cancelled += 1
-            if outcome.get("driver_cancelled"):
-                total_driver_cancelled += 1
 
     agent.epsilon = old_epsilon  # Restore
 
-    print(f"\n{'='*70}")
-    print(f"EVALUATION: {task_name} ({num_episodes} episodes, greedy)")
-    print(f"{'='*70}")
-    print(f"  Avg reward:       {total_reward/num_episodes:+.4f}")
-    print(f"  Completion rate:  {total_completed/num_episodes:.1%}")
-    print(f"  Cancellation:     {total_cancelled/num_episodes:.1%}")
-    print(f"    Rider cancelled:  {total_rider_cancelled}")
-    print(f"    Driver cancelled: {total_driver_cancelled}")
-    print(f"  Timeout:          {total_timed_out/num_episodes:.1%}")
-    print(f"  Avg steps:        {total_steps/num_episodes:.2f}")
-    print(f"{'='*70}\n")
+    score = max(0.0, min(1.0, total_passed / num_episodes))
+    avg_profit = total_profit / completed_count if completed_count > 0 else 0.0
 
     return {
         "task": task_name,
-        "avg_reward": round(total_reward / num_episodes, 4),
+        "score": round(score, 4),
+        "pass_rate": round(total_passed / num_episodes, 4),
         "completion_rate": round(total_completed / num_episodes, 4),
         "cancellation_rate": round(total_cancelled / num_episodes, 4),
-        "rider_cancellations": total_rider_cancelled,
-        "driver_cancellations": total_driver_cancelled,
         "timeout_rate": round(total_timed_out / num_episodes, 4),
-        "avg_steps": round(total_steps / num_episodes, 2),
+        "avg_profit": round(avg_profit, 4),
+        "avg_penalty": round(total_penalty / num_episodes, 4),
+        "num_episodes": num_episodes,
     }
 
 
@@ -370,18 +373,20 @@ def main():
         )
         all_results[task] = result
 
-    if len(all_results) > 1:
-        print("\n" + "=" * 70)
-        print("SUMMARY ACROSS ALL TASKS")
-        print("=" * 70)
-        for task, res in all_results.items():
-            print(f"  {task:>8s}: reward={res['avg_reward']:+.4f}  "
-                  f"completion={res['completion_rate']:.1%}  "
-                  f"cancel={res['cancellation_rate']:.1%}")
-        avg_reward = sum(r["avg_reward"] for r in all_results.values()) / len(all_results)
-        avg_completion = sum(r["completion_rate"] for r in all_results.values()) / len(all_results)
-        print(f"  {'AVERAGE':>8s}: reward={avg_reward:+.4f}  completion={avg_completion:.1%}")
-        print("=" * 70)
+    avg_score = sum(r["score"] for r in all_results.values()) / len(all_results)
+
+    print("\n" + "=" * 88)
+    print(f"{'RESULTS SUMMARY':^88}")
+    print("=" * 88)
+    print(f"{'Task':<10} {'Score':>7} {'Pass%':>7} {'Complete%':>10} {'Cancel%':>8} {'Timeout%':>9} {'AvgProfit':>10} {'AvgPenalty':>11}")
+    print("-" * 88)
+    for task, r in all_results.items():
+        print(f"{r['task']:<10} {r['score']:>7.4f} {r['pass_rate']*100:>6.1f}% "
+              f"{r['completion_rate']*100:>9.1f}% {r['cancellation_rate']*100:>7.1f}% "
+              f"{r['timeout_rate']*100:>8.1f}% ${r['avg_profit']:>9.2f} ${r['avg_penalty']:>10.4f}")
+    print("-" * 88)
+    print(f"{'AVERAGE':<10} {avg_score:>7.4f}")
+    print("=" * 88)
 
 
 if __name__ == "__main__":

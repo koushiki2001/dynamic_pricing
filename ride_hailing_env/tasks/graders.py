@@ -1,20 +1,19 @@
-"""Graders: run N episodes, compute composite 0.0–1.0 score per task."""
+"""Graders: run N episodes, compute 0.0–1.0 score as fraction of passing episodes.
+
+An episode passes if and only if:
+  1. ride_completed = True
+  2. episode_reward > reward_threshold  (earned enough profit efficiently)
+  3. missed_revenue_penalty < penalty_threshold  (didn't leave too much on the table)
+
+Both thresholds are scenario-specific, derived from the hidden state at generation time.
+"""
 
 from __future__ import annotations
 
 from typing import Any, Callable, Dict
 
-from ..config import TASK_CONFIG, MAX_EFFICIENCY_BONUS
+from ..config import TASK_CONFIG
 from ..environment import DynamicPricingEnv
-from ..utils import normalize_revenue
-
-
-# Per-task grading weights
-GRADER_WEIGHTS = {
-    "easy": {"completion": 0.40, "efficiency": 0.30, "profit": 0.20, "no_cancel": 0.10},
-    "medium": {"completion": 0.30, "efficiency": 0.25, "profit": 0.30, "no_cancel": 0.15},
-    "hard": {"completion": 0.25, "efficiency": 0.20, "profit": 0.35, "no_cancel": 0.20},
-}
 
 
 def grade_task(
@@ -37,51 +36,53 @@ def grade_task(
     total_profit = 0.0
     total_efficiency = 0.0
     completed_count = 0
+    total_passed = 0
 
     for ep in range(num_episodes):
         ep_seed = seed + ep
         env = DynamicPricingEnv(task_name=task_name, seed=ep_seed)
         obs = env.reset()
         done = False
+        episode_reward = 0.0
 
         while not done:
             action = policy_fn(obs.model_dump())
             result = env.step(action)
             obs = result.observation
             done = result.done
+            episode_reward += result.reward
 
         outcome = result.info["outcome"]
+        missed_revenue_penalty = result.info["missed_revenue_penalty"]
+        reward_threshold = result.info["reward_threshold"]
+        penalty_threshold = result.info["penalty_threshold"]
+
         if outcome["ride_completed"]:
             total_completed += 1
             completed_count += 1
             total_profit += outcome["platform_profit"]
             total_efficiency += cfg["max_steps"] / outcome["steps_taken"]
+
+            # Per-episode pass/fail: agent must earn enough AND not leave too much on the table
+            if episode_reward > reward_threshold and missed_revenue_penalty < penalty_threshold:
+                total_passed += 1
         elif outcome["timed_out"]:
             total_timed_out += 1
         else:
             total_cancelled += 1
 
-    # Compute metrics
+    # Score = fraction of episodes that passed both criteria
+    score = max(0.0, min(1.0, total_passed / num_episodes))
+
     completion_rate = total_completed / num_episodes
     cancellation_rate = total_cancelled / num_episodes
     avg_efficiency = (total_efficiency / completed_count if completed_count > 0 else 0.0)
-    avg_efficiency_norm = min(avg_efficiency / MAX_EFFICIENCY_BONUS, 1.0)
     avg_profit = total_profit / completed_count if completed_count > 0 else 0.0
-    profit_norm = normalize_revenue(avg_profit)
-
-    # Composite score
-    w = GRADER_WEIGHTS[task_name]
-    score = (
-        w["completion"] * completion_rate
-        + w["efficiency"] * avg_efficiency_norm
-        + w["profit"] * profit_norm
-        + w["no_cancel"] * (1.0 - cancellation_rate)
-    )
-    score = max(0.0, min(1.0, score))
 
     return {
         "task": task_name,
         "score": round(score, 4),
+        "pass_rate": round(total_passed / num_episodes, 4),
         "completion_rate": round(completion_rate, 4),
         "cancellation_rate": round(cancellation_rate, 4),
         "timeout_rate": round(total_timed_out / num_episodes, 4),

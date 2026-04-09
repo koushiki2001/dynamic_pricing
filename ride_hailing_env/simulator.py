@@ -1,10 +1,12 @@
-"""Simulator: accept/reject logic, patience decay, mood derivation."""
+"""Simulator: accept/reject logic, patience decay, mood derivation.
+
+Acceptance is a pure deterministic threshold check — noise was folded into
+rider_max_willingness and driver_min_willingness at scenario generation time.
+"""
 
 from __future__ import annotations
 
-import numpy as np
 from dataclasses import dataclass
-from typing import Tuple
 
 from .models import Observation, HiddenState
 from .utils import clamp, patience_to_mood
@@ -25,30 +27,17 @@ class SimResult:
 
 
 class Simulator:
-    def __init__(self, seed: int = 42) -> None:
-        self.rng = np.random.default_rng(seed)
-
     def simulate_step(
         self,
         observation: Observation,
         hidden: HiddenState,
         proposed_price: float,
     ) -> SimResult:
-        rng = self.rng
+        # --- Rider decision (deterministic threshold) ---
+        rider_accepted = proposed_price <= hidden.rider_max_willingness
 
-        # --- Rider decision ---
-        # Rider accepts if price ≤ their hidden max willingness (+ noise)
-        rider_threshold = hidden.rider_max_willingness + rng.uniform(
-            -hidden.rider_acceptance_noise, hidden.rider_acceptance_noise
-        )
-        rider_accepted = proposed_price <= rider_threshold
-
-        # --- Driver decision ---
-        # Driver accepts if proposed price meets their minimum acceptable fare
-        driver_threshold = hidden.driver_min_willingness + rng.uniform(
-            -hidden.driver_acceptance_noise, hidden.driver_acceptance_noise
-        )
-        driver_accepted = proposed_price >= driver_threshold
+        # --- Driver decision (deterministic threshold) ---
+        driver_accepted = proposed_price >= hidden.driver_min_willingness
 
         # --- Patience updates (only on rejection) ---
         new_rider_patience = observation.rider_patience

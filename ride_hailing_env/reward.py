@@ -31,12 +31,14 @@ def compute_terminal_reward(
     max_steps: int,
     ride_completed: bool,
     timed_out: bool,
+    rider_max_willingness: float = 0.0,
 ) -> float:
     """Terminal reward at end of episode."""
     if ride_completed:
         platform_profit = proposed_price * commission_rate - operational_cost
         efficiency_bonus = min(max_steps / max(steps_taken, 1), MAX_EFFICIENCY_BONUS)
-        return platform_profit * efficiency_bonus
+        missed_revenue_penalty = max(0.0, rider_max_willingness - proposed_price) * commission_rate
+        return platform_profit * efficiency_bonus - missed_revenue_penalty
     if timed_out:
         return TIMEOUT_PENALTY
     # Cancellation

@@ -26,7 +26,7 @@ class DynamicPricingEnv:
         self.task_name = task_name
         self.seed = seed
         self._generator = ScenarioGenerator(seed)
-        self._simulator = Simulator(seed)
+        self._simulator = Simulator()
         self._observation: Optional[Observation] = None
         self._hidden: Optional[HiddenState] = None
         self._step_count = 0
@@ -37,7 +37,7 @@ class DynamicPricingEnv:
     def reset(self) -> Observation:
         """Initialize a new episode. Returns the initial observation."""
         self._generator = ScenarioGenerator(self.seed)
-        self._simulator = Simulator(self.seed + 1000)
+        self._simulator = Simulator()
         self._observation, self._hidden = self._generator.generate(self.task_name)
         self._step_count = 0
         self._done = False
@@ -100,6 +100,7 @@ class DynamicPricingEnv:
                 max_steps=self._observation.max_steps,
                 ride_completed=ride_completed,
                 timed_out=timed_out,
+                rider_max_willingness=self._hidden.rider_max_willingness,
             )
         else:
             reward = compute_step_reward(sim_result)
@@ -147,12 +148,20 @@ class DynamicPricingEnv:
 
         self._done = done
 
+        missed_revenue_penalty = (
+            round(max(0.0, self._hidden.rider_max_willingness - price) * self._observation.commission_rate, 4)
+            if ride_completed else 0.0
+        )
+
         info: Dict[str, Any] = {
             "task_name": self.task_name,
             "seed": self.seed,
             "outcome": outcome.model_dump(),
             "action_history": self._action_history,
             "cumulative_reward": round(self._cumulative_reward, 4),
+            "missed_revenue_penalty": missed_revenue_penalty,
+            "reward_threshold": self._hidden.reward_threshold,
+            "penalty_threshold": self._hidden.penalty_threshold,
         }
 
         return StepResult(
