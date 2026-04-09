@@ -121,7 +121,8 @@ def run_inference(task_name: str, num_episodes: int = 20, seed: int | None = Non
         else:
             total_cancelled += 1
 
-    score = max(0.0, min(1.0, total_passed / num_episodes))
+    EPS = 1e-4
+    score = max(EPS, min(1.0 - EPS, total_passed / num_episodes))
     completion_rate = total_completed / num_episodes
     cancellation_rate = total_cancelled / num_episodes
     avg_profit = total_profit / completed_count if completed_count > 0 else 0.0
