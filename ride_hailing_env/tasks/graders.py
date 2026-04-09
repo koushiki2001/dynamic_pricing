@@ -77,7 +77,7 @@ def grade_task(
     # clamped to be strictly between 0 and 1
     EPS = 1e-4
     raw_score = total_passed / num_episodes
-    score = max(EPS, min(1.0 - EPS, raw_score))
+    score = max(EPS, min(0.99 - EPS, raw_score))
 
     completion_rate = total_completed / num_episodes
     cancellation_rate = total_cancelled / num_episodes
