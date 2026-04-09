@@ -97,13 +97,13 @@ def grade_task(
     }
 
 
-def grade_easy(policy_fn: Callable, num_episodes: int | None = None, seed: int | None = None) -> Dict[str, float]:
-    return grade_task("easy", policy_fn, num_episodes, seed)
+def grade_easy(policy_fn: Callable, num_episodes: int | None = None, seed: int | None = None) -> float:
+    return grade_task("easy", policy_fn, num_episodes, seed)["score"]
 
 
-def grade_medium(policy_fn: Callable, num_episodes: int | None = None, seed: int | None = None) -> Dict[str, float]:
-    return grade_task("medium", policy_fn, num_episodes, seed)
+def grade_medium(policy_fn: Callable, num_episodes: int | None = None, seed: int | None = None) -> float:
+    return grade_task("medium", policy_fn, num_episodes, seed)["score"]
 
 
-def grade_hard(policy_fn: Callable, num_episodes: int | None = None, seed: int | None = None) -> Dict[str, float]:
-    return grade_task("hard", policy_fn, num_episodes, seed)
+def grade_hard(policy_fn: Callable, num_episodes: int | None = None, seed: int | None = None) -> float:
+    return grade_task("hard", policy_fn, num_episodes, seed)["score"]
