@@ -14,125 +14,10 @@ import sys
 
 from dotenv import load_dotenv
 
-# Load credentials from .env before anything else
+# Load credentials from .env before anything else — must happen before inference imports
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"), override=True)
-
-from ride_hailing_env.config import TASK_CONFIG
-from ride_hailing_env.environment import DynamicPricingEnv
-from baselines.openai_policy import OpenAIPolicy
-
-
-def run_inference(task_name: str, num_episodes: int = 20, seed: int | None = None) -> dict:
-    """Run OpenAI agent on a task, return grading results."""
-    cfg = TASK_CONFIG[task_name]
-    seed = seed or cfg["seed"]
-
-    policy = OpenAIPolicy()
-
-    total_completed = 0
-    total_cancelled = 0
-    total_timed_out = 0
-    total_profit = 0.0
-    total_efficiency = 0.0
-    completed_count = 0
-    total_passed = 0
-    total_penalty = 0.0
-
-    for ep in range(num_episodes):
-        ep_seed = seed + ep
-        env = DynamicPricingEnv(task_name=task_name, seed=ep_seed)
-        obs = env.reset()
-        done = False
-        episode_reward = 0.0
-        step_num = 0
-
-        policy.reset()
-
-        # [START] structured log
-        print(f"[START] task={task_name} episode={ep+1} seed={ep_seed}")
-
-        while not done:
-            obs_dict = obs.model_dump()
-            action = policy(obs_dict)
-            result = env.step(action)
-
-            # Handle duplicate-price rejection: nudge price to break the loop
-            if result.info.get("duplicate_price"):
-                p = action["payload"]["price"]
-                action["payload"]["price"] = round(p + 0.5, 2)
-                result = env.step(action)
-                if result.info.get("duplicate_price"):
-                    action["payload"]["price"] = round(p - 0.5, 2)
-                    result = env.step(action)
-                    if result.info.get("duplicate_price"):
-                        action["payload"]["price"] = round(p + 1.0, 2)
-                        result = env.step(action)
-
-            step_num += 1
-            price = action["payload"]["price"]
-            rider_resp = result.observation.last_rider_response or "none"
-            driver_resp = result.observation.last_driver_response or "none"
-
-            # [STEP] structured log
-            print(f"[STEP] task={task_name} episode={ep+1} step={step_num} "
-                  f"price={price:.2f} rider_response={rider_resp} "
-                  f"driver_response={driver_resp} reward={result.reward:.4f}")
-
-            obs = result.observation
-            done = result.done
-            episode_reward += result.reward
-
-        outcome = result.info["outcome"]
-        missed_revenue_penalty = result.info["missed_revenue_penalty"]
-        reward_threshold = result.info["reward_threshold"]
-        penalty_threshold = result.info["penalty_threshold"]
-
-        profit_val = outcome.get("platform_profit") or 0.0
-        episode_passed = (
-            outcome["ride_completed"]
-            and episode_reward > reward_threshold
-            and missed_revenue_penalty < penalty_threshold
-        )
-
-        # [END] structured log
-        print(f"[END] task={task_name} episode={ep+1} "
-              f"outcome={outcome['termination_reason']} "
-              f"steps={outcome['steps_taken']} "
-              f"profit={profit_val:.2f} "
-              f"reward={episode_reward:.4f} "
-              f"penalty={missed_revenue_penalty:.4f} "
-              f"passed={episode_passed}")
-
-        total_penalty += missed_revenue_penalty
-
-        if outcome["ride_completed"]:
-            total_completed += 1
-            completed_count += 1
-            total_profit += outcome["platform_profit"]
-            total_efficiency += cfg["max_steps"] / outcome["steps_taken"]
-            if episode_passed:
-                total_passed += 1
-        elif outcome["timed_out"]:
-            total_timed_out += 1
-        else:
-            total_cancelled += 1
-
-    score = max(0.0, min(1.0, total_passed / num_episodes))
-    completion_rate = total_completed / num_episodes
-    cancellation_rate = total_cancelled / num_episodes
-    avg_profit = total_profit / completed_count if completed_count > 0 else 0.0
-
-    return {
-        "task": task_name,
-        "score": round(score, 4),
-        "pass_rate": round(total_passed / num_episodes, 4),
-        "completion_rate": round(completion_rate, 4),
-        "cancellation_rate": round(cancellation_rate, 4),
-        "timeout_rate": round(total_timed_out / num_episodes, 4),
-        "avg_profit": round(avg_profit, 4),
-        "avg_penalty": round(total_penalty / num_episodes, 4),
-        "num_episodes": num_episodes,
-    }
+# Re-use all logic directly from inference.py
+from inference import run_inference, log_start, log_step, log_end, _sigmoid_score, BENCHMARK
 
 
 def main():
@@ -146,12 +31,12 @@ def main():
         print("ERROR: MODEL_NAME not found. Check your .env file.")
         sys.exit(1)
 
-    num_episodes = int(os.getenv("NUM_EPISODES", "20"))
+    num_episodes = int(os.getenv("NUM_EPISODES", "5"))  # default lower for local testing
     tasks = ["easy", "medium", "hard"]
 
     print(f"[CONFIG] api_base_url={os.environ['API_BASE_URL']} "
           f"model={os.environ['MODEL_NAME']} "
-          f"episodes_per_task={num_episodes}")
+          f"episodes_per_task={num_episodes}", flush=True)
 
     all_results = []
     for task in tasks:

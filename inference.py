@@ -9,27 +9,65 @@ Required environment variables:
 
 Usage:
     API_BASE_URL=https://openrouter.ai/api/v1 MODEL_NAME=google/gemini-2.0-flash-001 HF_TOKEN=sk-... python inference.py
+
+STDOUT FORMAT (required by platform):
+    [START] task=<task_name> env=<benchmark> model=<model_name>
+    [STEP]  step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
+    [END]   success=<true|false> steps=<n> score=<score> rewards=<r1,r2,...,rn>
 """
 
 from __future__ import annotations
 
+import math
 import os
 import sys
+from typing import List, Optional
 
-# Ensure required environment variables are set for local runs
 os.environ.setdefault("API_BASE_URL", "https://router.huggingface.co/v1")
 os.environ.setdefault("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
-
 
 from ride_hailing_env.config import TASK_CONFIG
 from ride_hailing_env.environment import DynamicPricingEnv
 from baselines.openai_policy import OpenAIPolicy
 
+BENCHMARK = "ride_hailing_dynamic_pricing"
+
+
+def _sigmoid_score(raw: float) -> float:
+    """Map raw score [0, 1] to strictly (0, 1) via sigmoid.
+
+    Stretches [0, 1] to [-6, 6] before sigmoid, giving output in (0.0025, 0.9975).
+    Can never return exactly 0.0 or 1.0.
+    """
+    x = raw * 12.0 - 6.0
+    return 1.0 / (1.0 + math.exp(-x))
+
+
+def log_start(task: str, env: str, model: str) -> None:
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+
+def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
+    error_val = error if error else "null"
+    print(
+        f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()} error={error_val}",
+        flush=True,
+    )
+
+
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(
+        f"[END] success={str(success).lower()} steps={steps} score={score:.4f} rewards={rewards_str}",
+        flush=True,
+    )
+
 
 def run_inference(task_name: str, num_episodes: int = 20, seed: int | None = None) -> dict:
-    """Run OpenAI agent on a task, return grading results."""
+    """Run LLM agent on a task, emit required stdout logs, return grading results."""
     cfg = TASK_CONFIG[task_name]
     seed = seed or cfg["seed"]
+    model_name = os.environ.get("MODEL_NAME", "unknown")
 
     policy = OpenAIPolicy()
 
@@ -37,7 +75,6 @@ def run_inference(task_name: str, num_episodes: int = 20, seed: int | None = Non
     total_cancelled = 0
     total_timed_out = 0
     total_profit = 0.0
-    total_efficiency = 0.0
     completed_count = 0
     total_passed = 0
     total_penalty = 0.0
@@ -49,80 +86,91 @@ def run_inference(task_name: str, num_episodes: int = 20, seed: int | None = Non
         done = False
         episode_reward = 0.0
         step_num = 0
+        rewards: List[float] = []
 
         policy.reset()
 
-        # [START] structured log
-        print(f"[START] task={task_name} episode={ep+1} seed={ep_seed}")
+        log_start(task=task_name, env=BENCHMARK, model=model_name)
 
-        while not done:
-            obs_dict = obs.model_dump()
-            action = policy(obs_dict)
-            result = env.step(action)
+        try:
+            while not done:
+                obs_dict = obs.model_dump()
+                action = policy(obs_dict)
 
-            # Handle duplicate-price rejection: nudge price to break the loop
-            if result.info.get("duplicate_price"):
-                p = action["payload"]["price"]
-                action["payload"]["price"] = round(p + 0.5, 2)
+                # Handle duplicate-price rejection: nudge price to break the loop
                 result = env.step(action)
                 if result.info.get("duplicate_price"):
-                    action["payload"]["price"] = round(p - 0.5, 2)
-                    result = env.step(action)
-                    if result.info.get("duplicate_price"):
-                        action["payload"]["price"] = round(p + 1.0, 2)
+                    p = action["payload"]["price"]
+                    for nudge in [0.5, -0.5, 1.0]:
+                        action["payload"]["price"] = round(p + nudge, 2)
                         result = env.step(action)
+                        if not result.info.get("duplicate_price"):
+                            break
 
-            step_num += 1
-            price = action["payload"]["price"]
-            rider_resp = result.observation.last_rider_response or "none"
-            driver_resp = result.observation.last_driver_response or "none"
+                step_num += 1
+                price = action["payload"]["price"]
+                reward = result.reward or 0.0
+                done = result.done
+                episode_reward += reward
+                rewards.append(reward)
 
-            # [STEP] structured log
-            print(f"[STEP] task={task_name} episode={ep+1} step={step_num} "
-                  f"price={price:.2f} rider_response={rider_resp} "
-                  f"driver_response={driver_resp} reward={result.reward:.4f}")
+                log_step(
+                    step=step_num,
+                    action=f"propose_price({price:.2f})",
+                    reward=reward,
+                    done=done,
+                    error=None,
+                )
 
-            obs = result.observation
-            done = result.done
-            episode_reward += result.reward
+                obs = result.observation
 
-        outcome = result.info["outcome"]
-        missed_revenue_penalty = result.info["missed_revenue_penalty"]
-        reward_threshold = result.info["reward_threshold"]
-        penalty_threshold = result.info["penalty_threshold"]
+            outcome = result.info["outcome"]
+            missed_revenue_penalty = result.info["missed_revenue_penalty"]
+            reward_threshold = result.info["reward_threshold"]
+            penalty_threshold = result.info["penalty_threshold"]
 
-        profit_val = outcome.get("platform_profit") or 0.0
-        episode_passed = (
-            outcome["ride_completed"]
-            and episode_reward > reward_threshold
-            and missed_revenue_penalty < penalty_threshold
-        )
+            profit_val = outcome.get("platform_profit") or 0.0
+            episode_passed = (
+                outcome["ride_completed"]
+                and episode_reward > reward_threshold
+                and missed_revenue_penalty < penalty_threshold
+            )
+            success = outcome["ride_completed"]
 
-        # [END] structured log
-        print(f"[END] task={task_name} episode={ep+1} "
-              f"outcome={outcome['termination_reason']} "
-              f"steps={outcome['steps_taken']} "
-              f"profit={profit_val:.2f} "
-              f"reward={episode_reward:.4f} "
-              f"penalty={missed_revenue_penalty:.4f} "
-              f"passed={episode_passed}")
+            # Per-episode score via sigmoid — strictly in (0, 1)
+            raw = 1.0 if episode_passed else (0.4 if outcome["ride_completed"] else 0.0)
+            episode_score = _sigmoid_score(raw)
 
-        total_penalty += missed_revenue_penalty
+            total_penalty += missed_revenue_penalty
 
-        if outcome["ride_completed"]:
-            total_completed += 1
-            completed_count += 1
-            total_profit += outcome["platform_profit"]
-            total_efficiency += cfg["max_steps"] / outcome["steps_taken"]
-            if episode_passed:
-                total_passed += 1
-        elif outcome["timed_out"]:
-            total_timed_out += 1
-        else:
-            total_cancelled += 1
+            if outcome["ride_completed"]:
+                total_completed += 1
+                completed_count += 1
+                total_profit += profit_val
+                if episode_passed:
+                    total_passed += 1
+            elif outcome["timed_out"]:
+                total_timed_out += 1
+            else:
+                total_cancelled += 1
 
-    EPS = 1e-4
-    score = max(EPS, min(1.0 - EPS, total_passed / num_episodes))
+        except Exception as exc:
+            success = False
+            episode_score = _sigmoid_score(0.0)
+            log_step(step=step_num + 1, action="error", reward=0.0, done=True, error=str(exc))
+
+        finally:
+            log_end(
+                success=success,
+                steps=step_num,
+                score=episode_score,
+                rewards=rewards,
+            )
+
+    # Aggregate score across all episodes — sigmoid ensures strictly (0, 1)
+    raw_score = total_passed / num_episodes
+    score = _sigmoid_score(raw_score)
+
     completion_rate = total_completed / num_episodes
     cancellation_rate = total_cancelled / num_episodes
     avg_profit = total_profit / completed_count if completed_count > 0 else 0.0
@@ -156,7 +204,7 @@ def main():
 
     print(f"[CONFIG] api_base_url={os.environ['API_BASE_URL']} "
           f"model={os.environ['MODEL_NAME']} "
-          f"episodes_per_task={num_episodes}")
+          f"episodes_per_task={num_episodes}", flush=True)
 
     all_results = []
     for task in tasks:
