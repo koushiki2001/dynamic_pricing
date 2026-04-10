@@ -7,61 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: false
 ---
-## Dynamic Pricing OpenEnv — Hackathon Submission
 
-This repository implements a multi-step ride-hailing dynamic pricing environment and LLM-based agent for the OpenEnv Hackathon.
-
-### Features
-- **OpenEnv-compliant environment**: Negotiation between platform, rider, and driver with multi-step price proposals.
-- **LLM Policy**: Uses OpenAI-compatible API (e.g., HuggingFace router) for price proposals via `baselines/openai_policy.py`.
-- **Structured Logging**: Inference logs `[START]`, `[STEP]`, `[END]` for each episode, as required by the hackathon.
-- **Duplicate Price Handling**: Inference nudges price if the environment rejects a duplicate proposal.
-- **Strict Score Range**: All task scores are strictly between 0 and 1 (never exactly 0 or 1).
-- **Configurable via .env**: Set `API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN` in `.env` or environment.
-- **Docker-ready**: Includes Dockerfile for HF Spaces deployment.
-- **Validation Script**: `scripts/validate-submission.sh` checks API, Docker build, and OpenEnv compliance.
-
-### Key Files
-- `inference.py` — Root inference script (required by HF validator)
-- `app.py` — FastAPI server for deployment
-- `baselines/openai_policy.py` — LLM-based negotiation policy
-- `openenv.yaml` — Environment schema
-- `requirements.txt` — All dependencies (including `openenv-core>=0.2.0`)
-- `scripts/validate-submission.sh` — Submission validation script
-
-### Usage
-1. Set up your `.env` file with:
-   - `API_BASE_URL=https://router.huggingface.co/v1`
-   - `MODEL_NAME=meta-llama/Llama-3.1-8B-Instruct`
-   - `HF_TOKEN=...` (your HuggingFace token)
-2. Install dependencies:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install --upgrade pip
-   pip install -r requirements.txt
-   pip install -r server/requirements.txt
-   ```
-3. Run inference:
-   ```bash
-   python inference.py
-   ```
-4. Validate submission:
-   ```bash
-   ./scripts/validate-submission.sh <your-hf-space-url> dynamic_pricing
-   ```
-
-### Submission Compliance
-- Passes all hackathon requirements for:
-  - Root `inference.py` with structured logs
-  - Required env vars: `API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN`
-  - Uses OpenAI-compatible client
-  - `openenv-core>=0.2.0` in requirements
-  - Dockerfile and openenv.yaml present
-  - All scores strictly between 0 and 1
-
----
-For any issues, see the code or contact the maintainers.
 # Ride-Hailing Dynamic Pricing — OpenEnv Environment
 
 A multi-step negotiation environment where an AI agent acts as a **ride-hailing platform**, proposing prices each round to a rider and a driver who independently accept or reject. The agent must find a price both parties agree on — quickly, profitably, and without anyone walking away.
@@ -177,7 +123,7 @@ Each episode creates a fresh negotiation scenario via `ScenarioGenerator`:
 4. **Hidden willingness** extends beyond quotes by a slack amount:
    - Rider's true max = `rider_quote + slack`
    - Driver's true min = `driver_quote - slack`
-5. **Noise baked in at generation time**: A `rider_noise_bound` is sampled once per scenario from the task's `acceptance_noise_range`. This is added to the hidden thresholds *once*, making acceptance fully deterministic within an episode while preserving scenario-to-scenario variability. This models real-world unpredictability (e.g., a rider in a rush willing to pay more than usual) without introducing per-step randomness that would make grading stochastic.
+5. **Noise baked in at generation time**: A `rider_noise_bound` is sampled once per scenario from the task's `acceptance_noise_range`. This is added to the hidden thresholds *once*, making acceptance fully deterministic within an episode while preserving scenario-to-scenario variability.
 6. **Per-scenario thresholds** computed and stored in `HiddenState`:
    - `reward_threshold` = fraction of the maximum possible profit for that scenario
    - `penalty_threshold` = fraction of the `rider_noise_bound` (more unpredictable rider → more lenient penalty threshold)
@@ -207,7 +153,7 @@ missed_revenue_penalty = max(0, rider_max_willingness − price) × commission_r
 reward = platform_profit × efficiency_bonus − missed_revenue_penalty
 ```
 
-The `missed_revenue_penalty` penalizes leaving money on the table — if the rider would have accepted a higher price, the platform lost that revenue by pricing too low. This incentivizes the agent to price closer to the rider's true willingness, not just at the minimum acceptable level.
+The `missed_revenue_penalty` penalizes leaving money on the table — if the rider would have accepted a higher price, the platform lost that revenue by pricing too low.
 
 The `efficiency_bonus` rewards closing quickly — an 8-step task solved in 2 steps earns a 3.0× multiplier (capped).
 
@@ -228,15 +174,16 @@ episode_passed = (
     AND missed_revenue_penalty < penalty_threshold
 )
 
-score = total_passed / num_episodes   # ∈ [0.0, 1.0]
+raw_score = total_passed / num_episodes
+score     = sigmoid(raw_score)           # strictly in (0, 1)
 ```
 
 Both thresholds are **scenario-specific** — computed from the `HiddenState` at generation time:
 
-- `reward_threshold`: A minimum profit bar scaled to what was achievable in that scenario. Easy tasks require 30% of max possible profit; hard tasks require 70%.
-- `penalty_threshold`: A cap on how much revenue the agent is allowed to leave on the table, scaled by how unpredictable the rider was (higher `rider_noise_bound` → more tolerance).
+- `reward_threshold`: A minimum profit bar scaled to what was achievable in that scenario.
+- `penalty_threshold`: A cap on how much revenue the agent is allowed to leave on the table.
 
-This means completing the ride is necessary but not sufficient — the agent must also price well (high profit, not too low).
+The sigmoid mapping (`1 / (1 + exp(-(raw * 12 - 6)))`) guarantees the final score is never exactly 0.0 or 1.0, as required by the OpenEnv platform.
 
 ### Threshold Fractions by Task
 
@@ -252,7 +199,6 @@ This means completing the ride is necessary but not sufficient — the agent mus
 
 | Parameter | Easy ("Friendly Market") | Medium ("Rush Hour") | Hard ("Storm Surge") |
 |-----------|--------------------------|----------------------|----------------------|
-| Objective | Complete the ride | Complete within 5 steps with profit > 0 | Complete within 4 steps with profit > 1.0 |
 | Max steps | 8 | 5 | 4 |
 | Price gap | $6–14 | $10–18 | $12–22 |
 | Initial patience | 0.85–1.0 | 0.75–0.95 | 0.55–0.85 |
@@ -262,7 +208,7 @@ This means completing the ride is necessary but not sufficient — the agent mus
 | Reward threshold fraction | 30% | 50% | 70% |
 | Penalty threshold fraction | 100% | 75% | 50% |
 
-Harder tasks have: fewer negotiation rounds, larger price gaps, lower patience, faster patience decay, more noise in thresholds, and a stricter profit bar to pass.
+Harder tasks have: fewer negotiation rounds, larger price gaps, lower patience, faster patience decay, more noise, and a stricter profit bar to pass.
 
 ---
 
@@ -272,25 +218,13 @@ Harder tasks have: fewer negotiation rounds, larger price gaps, lower patience, 
 
 **File**: `baselines/openai_policy.py`
 
-**Model**: `google/gemini-2.0-flash-001` (via OpenRouter / HuggingFace Router)
+The primary submission agent. Each step it receives the full observation as a structured prompt and calls the LLM to reason about what price to propose. The prompt includes the current scenario context, full rejection history, and instructions to balance closing speed with profit.
 
-The primary submission agent. Each step, it receives the full observation as a structured prompt and calls the LLM to reason about what price to propose. The prompt includes:
-- Current scenario context (quotes, gap, weather, demand/supply, patience, moods)
-- Full rejection history so far
-- Instructions to balance closing speed with profit
+### Adaptive Baseline
 
-The LLM returns a price, which is parsed and submitted as the action.
+**File**: `baselines/adaptive_policy.py`
 
-### Q-Learning Agent (Training Baseline)
-
-**File**: `scripts/train.py`
-
-A tabular Q-learning agent that learns a price-selection policy over discrete state buckets — **no LLM involved**. It discretizes the observation into a 7-dimensional state tuple (gap bin, step, rider/driver patience bins, response history, context difficulty, demand-supply imbalance) and learns Q-values over 11 evenly-spaced candidate prices.
-
-Useful for:
-- Benchmarking reward function quality without LLM variance
-- Fast iteration on environment and reward design
-- Verifying that the environment is learnable at all
+Binary-search-style narrowing using rejection feedback. Maintains bounds `[low, high]` and updates them based on who rejected. Converges reliably but ignores profit optimization entirely.
 
 ### Midpoint Baseline
 
@@ -298,11 +232,17 @@ Useful for:
 
 Always proposes `(rider_quote + driver_quote) / 2`. Deterministic, no learning. Fails when the true acceptance zone is asymmetrically offset from the midpoint.
 
-### Adaptive Baseline
+### Reward-Guided LLM Policy (Experimental)
 
-**File**: `baselines/adaptive_policy.py`
+**File**: `baselines/reward_guided_llm_policy.py`
 
-Binary-search-style narrowing using rejection feedback. Maintains bounds `[low, high]` and updates them based on who rejected. Converges reliably but ignores profit optimization entirely.
+Combines LLM reasoning with reward signal from past steps to guide price proposals.
+
+### Q-Learning Agent
+
+**File**: `scripts/train.py`
+
+A tabular Q-learning agent that learns a price-selection policy over discrete state buckets — no LLM involved. Useful for benchmarking and verifying the environment is learnable.
 
 ---
 
@@ -319,36 +259,49 @@ dynamic_pricing/
 │   ├── config.py                  # Task configs (thresholds, noise ranges, difficulty params)
 │   ├── utils.py                   # clamp(), patience_to_mood()
 │   └── tasks/
-│       ├── graders.py             # Pass/fail grader — score = total_passed / num_episodes
-│       ├── easy_task.py           # Easy task definition and objective
-│       ├── medium_task.py         # Medium task definition and objective
-│       └── hard_task.py           # Hard task definition and objective
+│       ├── graders.py             # Pass/fail grader — sigmoid(total_passed / num_episodes)
+│       ├── easy_task.py           # Easy task definition
+│       ├── medium_task.py         # Medium task definition
+│       └── hard_task.py           # Hard task definition
 │
 ├── baselines/                     # Policy implementations
-│   ├── openai_policy.py           # LLM policy — submission entry point
+│   ├── openai_policy.py           # LLM policy — primary submission agent
 │   ├── adaptive_policy.py         # Binary-search adaptive baseline
 │   ├── midpoint_policy.py         # Static midpoint baseline
 │   ├── reward_guided_llm_policy.py # Reward-guided LLM policy (experimental)
+│   ├── evaluate_baselines.py      # Baseline evaluation runner
 │   └── session_manager.py         # Cross-episode LLM memory management
 │
 ├── scripts/
-│   ├── train.py                   # Q-learning agent training + tabular evaluation summary
+│   ├── train.py                   # Q-learning agent training
 │   ├── dump_scenarios.py          # Pre-generate train/eval scenario snapshots to JSON
-│   └── compare_all_policies.py    # Side-by-side policy comparison
+│   ├── compare_all_policies.py    # Side-by-side policy comparison
+│   ├── collect_experience.py      # Collect episode experience for replay
+│   ├── quick_test.py              # Quick sanity check
+│   ├── run_all_tests.py           # Run all tests
+│   └── validate-submission.sh     # Submission validation script
 │
 ├── data/
-│   ├── scenarios_{task}_train.json  # 5000 pre-generated training scenarios per task
-│   ├── scenarios_{task}_eval.json   # 1000 held-out eval scenarios per task (unseen)
+│   ├── scenarios_{task}_train.json  # Pre-generated training scenarios per task
+│   ├── scenarios_{task}_eval.json   # Held-out eval scenarios per task
 │   └── experience_{task}.json       # Past episode data for experience replay
 │
 ├── tests/
 │   ├── test_environment.py
-│   └── test_graders.py
+│   ├── test_graders.py
+│   └── test_session_manager.py
 │
-├── inference.py                   # Hackathon submission entry point (LLM policy)
+├── server/
+│   └── app.py                     # Server entry point (required by openenv validate)
+│
+├── app.py                         # FastAPI server — /reset, /step, /state, /schema, /health
+├── inference.py                   # Hackathon submission entry point (LLM policy, structured logs)
+├── test_inference.py              # Local test runner — loads .env, imports from inference.py
+├── models.py                      # Re-exports from ride_hailing_env.models (required by openenv)
+├── client.py                      # OpenEnv client (required by openenv validate)
 ├── openenv.yaml                   # OpenEnv environment specification
-├── tasks.json                     # Task metadata
-├── Dockerfile                     # Container build
+├── pyproject.toml                 # Package metadata and entry points
+├── Dockerfile                     # Container build for HF Spaces
 └── requirements.txt               # Dependencies
 ```
 
@@ -359,18 +312,20 @@ dynamic_pricing/
 ### Installation
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
-
-**Dependencies**: numpy, pydantic (v2), openai, python-dotenv, pytest
 
 ### Environment Variables
 
 ```bash
-export API_BASE_URL=https://openrouter.ai/api/v1
-export MODEL_NAME=google/gemini-2.0-flash-001
+export API_BASE_URL=https://router.huggingface.co/v1
+export MODEL_NAME=meta-llama/Llama-3.1-8B-Instruct
 export HF_TOKEN=<your-api-key>
 ```
+
+Or create a `.env` file with those keys — `test_inference.py` will load it automatically.
 
 ### Run Inference (LLM Agent)
 
@@ -378,7 +333,7 @@ export HF_TOKEN=<your-api-key>
 python inference.py
 ```
 
-Runs the LLM policy across all three tasks (20 episodes each) and prints a tabular summary:
+Runs the LLM policy across all three tasks (20 episodes each by default) and prints a tabular summary:
 
 ```
 Task        Score   Pass%  Complete%  Cancel%  Timeout%  AvgProfit  AvgPenalty
@@ -387,27 +342,43 @@ medium     0.5500  55.0%      70.0%    20.0%     10.0%      $9.87      $0.4300
 hard       0.3000  30.0%      50.0%    35.0%     15.0%      $7.12      $0.6700
 ```
 
+Override episode count:
+```bash
+NUM_EPISODES=5 python inference.py
+```
+
+### Local Testing
+
+```bash
+python test_inference.py
+```
+
+Same logic as `inference.py` but loads credentials from `.env` and defaults to 5 episodes per task.
+
+### Validate Submission
+
+```bash
+./scripts/validate-submission.sh <your-hf-space-url> dynamic_pricing
+```
+
+Or run OpenEnv validation directly:
+```bash
+openenv validate
+```
+
 ### Train the Q-Learning Agent
 
 ```bash
-# Train on a single task
 python scripts/train.py --task easy --episodes 3000
-
-# Train on all tasks
 python scripts/train.py --task all --episodes 3000
 ```
 
 ### Pre-generate Scenario Snapshots
 
 ```bash
-# Generate 5000 train + 1000 eval scenarios for all tasks
 python scripts/dump_scenarios.py
-
-# Generate for a specific task
 python scripts/dump_scenarios.py --task medium --train-episodes 5000 --eval-episodes 1000
 ```
-
-Train and eval scenarios use different seed ranges (`seed=42` vs `seed=99999`) to guarantee eval scenarios are unseen during training.
 
 ### Compare All Policies
 
@@ -432,4 +403,4 @@ docker run -e HF_TOKEN=<key> -e API_BASE_URL=<url> -e MODEL_NAME=<model> ride-ha
 
 ## OpenEnv Metadata
 
-See `openenv.yaml` for the full environment specification including observation/action schemas and performance bounds.
+See `openenv.yaml` for the full environment specification including observation/action schemas and reward bounds.
