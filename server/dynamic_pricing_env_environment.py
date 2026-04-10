@@ -11,6 +11,7 @@ A simple test environment that echoes back messages sent to it.
 Perfect for testing HTTP server infrastructure.
 """
 
+import math
 import random
 import uuid
 
@@ -19,6 +20,22 @@ from models import PricingAction, PricingObservation, PricingState
 
 
 class DynamicPricingEnvironment(Environment):
+    @staticmethod
+    def _normalize_reward(raw_reward: float) -> float:
+        """
+        Normalize reward to (0.0, 1.0) range using sigmoid function.
+        
+        The sigmoid function maps any value to (0, 1) exclusive.
+        Formula: sigmoid(x) = 1 / (1 + e^(-x))
+        
+        Args:
+            raw_reward: Unnormalized reward value
+            
+        Returns:
+            Normalized reward in range (0.0, 1.0)
+        """
+        return 1.0 / (1.0 + math.exp(-raw_reward / 50.0))
+    
     def __init__(self):
         super().__init__()
         self._state = PricingState(
@@ -90,7 +107,8 @@ class DynamicPricingEnvironment(Environment):
         unserved_demand = max(0, self._state.demand - accepted_rides)
         overpricing_penalty = max(0.0, (self._state.price_multiplier - 1.3) * 8.0)
 
-        reward = revenue - (unserved_demand * 2.0) - overpricing_penalty
+        raw_reward = revenue - (unserved_demand * 2.0) - overpricing_penalty
+        reward = self._normalize_reward(raw_reward)
 
         self._state.accepted_rides = accepted_rides
         self._state.revenue = revenue
@@ -107,11 +125,11 @@ class DynamicPricingEnvironment(Environment):
 
         if done:
             return self._make_observation(
-                f"Episode finished. Total reward = {round(self._state.total_reward, 2)}"
+                f"Episode finished. Total reward = {round(self._state.total_reward, 4)}"
             )
 
         return self._make_observation(
-            f"Action={action.move}, reward={round(reward, 2)}"
+            f"Action={action.move}, reward={round(reward, 4)}"
         )
 
     @property
