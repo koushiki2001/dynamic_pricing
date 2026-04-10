@@ -1,38 +1,19 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
+"""Root models.py — re-exports from ride_hailing_env.models.
 
-"""
-Data models for the Dynamic Pricing Env Environment.
-
-The dynamic_pricing_env environment is a simple test environment that echoes back messages.
+Required by openenv validate. All actual model definitions live in
+ride_hailing_env/models.py.
 """
 
-from openenv.core.env_server import Action, Observation, State
+from ride_hailing_env.models import (
+    Action as PricingAction,
+    Observation as PricingObservation,
+    StepResult,
+    EpisodeOutcome,
+)
 
-
-class PricingAction(Action):
-    move: str
-
-
-class PricingObservation(Observation):
-    demand: int
-    supply: int
-    market_factor: float
-    price_multiplier: float
-    accepted_rides: int
-    revenue: float
-    message: str
-
-
-class PricingState(State):
-    demand: int = 20
-    supply: int = 15
-    market_factor: float = 1.0
-    price_multiplier: float = 1.0
-    accepted_rides: int = 0
-    revenue: float = 0.0
-    total_reward: float = 0.0
-    max_steps: int = 10
+__all__ = [
+    "PricingAction",
+    "PricingObservation",
+    "StepResult",
+    "EpisodeOutcome",
+]
