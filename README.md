@@ -14,7 +14,8 @@ A multi-step negotiation environment where an AI agent acts as a **ride-hailing 
 
 ## System Architecture
 
-![Ride-Hailing Dynamic Pricing — System Architecture](system_design.png)
+<img width="4221" height="2808" alt="system_design" src="https://github.com/user-attachments/assets/0880850a-8a8f-4bf2-8435-9db1870c90fc" />
+
 
 ---
 
