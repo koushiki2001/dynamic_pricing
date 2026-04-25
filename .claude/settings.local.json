@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//e/Coding Base/Hackathon/dynamic-pricing/**)"
+    ],
+    "additionalDirectories": [
+      "e:\\Coding Base\\Hackathon\\dynamic-pricing\\reference"
+    ]
+  }
+}
