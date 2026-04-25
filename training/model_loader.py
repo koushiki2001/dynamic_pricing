@@ -65,6 +65,21 @@ def _load_with_unsloth(
     return model, tokenizer
 
 
+def enable_inference_mode(model) -> object:
+    """Call FastLanguageModel.for_inference() for ~2x faster generation speed.
+
+    Use this on any model that will only be doing inference (frozen opponent,
+    eval runs, demo). Do NOT call on a model you still intend to train —
+    it disables gradient computation.
+    """
+    try:
+        from unsloth import FastLanguageModel
+        return FastLanguageModel.for_inference(model)
+    except Exception:
+        model.eval()
+        return model
+
+
 def load_platform_model(lora_path: Optional[str] = None) -> Tuple[object, object]:
     """Load the platform LLM. Pass ``lora_path`` to resume from a checkpoint."""
     return _load_with_unsloth(

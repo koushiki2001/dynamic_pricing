@@ -51,12 +51,16 @@ class DynamicPricingEnv:
             raise RuntimeError("Call reset() before state().")
         return self._observation
 
-    def step(self, action: Any) -> StepResult:
+    def step(self, action: Any, override_decision: Optional[dict] = None) -> StepResult:
         """Process one negotiation round.
 
         Args:
             action: Either an Action model, a dict {"type": "propose_price", "payload": {"price": X}},
                     or a raw float.
+            override_decision: Optional dict {"rider": bool, "driver": bool} supplied by the
+                simulator LLM (Phase 3+). When provided, accept/reject logic uses these values
+                instead of the deterministic threshold check, while patience decay and
+                cancellation logic remain unchanged. Omit for standard rule-based behaviour.
         """
         if self._observation is None or self._hidden is None:
             raise RuntimeError("Call reset() before step().")
@@ -80,7 +84,16 @@ class DynamicPricingEnv:
         self._step_count += 1
 
         # Simulate rider/driver reactions
-        sim_result = self._simulator.simulate_step(self._observation, self._hidden, price)
+        if override_decision is not None:
+            sim_result = self._simulator.simulate_step_with_decisions(
+                self._observation,
+                self._hidden,
+                price,
+                rider_accepted=bool(override_decision.get("rider", False)),
+                driver_accepted=bool(override_decision.get("driver", False)),
+            )
+        else:
+            sim_result = self._simulator.simulate_step(self._observation, self._hidden, price)
 
         # Determine terminal state
         at_max_steps = self._step_count >= self._observation.max_steps
@@ -170,6 +183,12 @@ class DynamicPricingEnv:
             done=done,
             info=info,
         )
+
+    def get_hidden_state(self) -> HiddenState:
+        """Expose hidden state for the simulator LLM (never shown to platform)."""
+        if self._hidden is None:
+            raise RuntimeError("Call reset() before get_hidden_state().")
+        return self._hidden
 
     def _parse_price(self, action: Any) -> float:
         if isinstance(action, Action):

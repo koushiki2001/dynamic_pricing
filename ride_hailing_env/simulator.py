@@ -27,6 +27,45 @@ class SimResult:
 
 
 class Simulator:
+    def simulate_step_with_decisions(
+        self,
+        observation: Observation,
+        hidden: HiddenState,
+        proposed_price: float,
+        rider_accepted: bool,
+        driver_accepted: bool,
+    ) -> SimResult:
+        """Same patience decay and cancellation logic as simulate_step, but
+        accept/reject decisions are supplied externally (by the simulator LLM).
+        Used by the multi-agent rollout in Phase 3+."""
+        new_rider_patience = observation.rider_patience
+        if not rider_accepted:
+            new_rider_patience = clamp(
+                observation.rider_patience - hidden.rider_patience_decay, 0.0, 1.0
+            )
+
+        new_driver_patience = observation.driver_patience
+        if not driver_accepted:
+            new_driver_patience = clamp(
+                observation.driver_patience - hidden.driver_patience_decay, 0.0, 1.0
+            )
+
+        rider_cancelled  = (not rider_accepted)  and new_rider_patience  <= 0.0
+        driver_cancelled = (not driver_accepted) and new_driver_patience <= 0.0
+
+        return SimResult(
+            rider_accepted=rider_accepted,
+            driver_accepted=driver_accepted,
+            rider_cancelled=rider_cancelled,
+            driver_cancelled=driver_cancelled,
+            new_rider_patience=round(new_rider_patience, 4),
+            new_driver_patience=round(new_driver_patience, 4),
+            new_rider_mood=patience_to_mood(new_rider_patience),
+            new_driver_mood=patience_to_mood(new_driver_patience),
+            both_accepted=rider_accepted and driver_accepted,
+            any_cancelled=rider_cancelled or driver_cancelled,
+        )
+
     def simulate_step(
         self,
         observation: Observation,
