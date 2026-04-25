@@ -6,6 +6,7 @@
 
 """Dynamic Pricing Env Environment Client."""
 
+import os
 from typing import Dict
 
 from openenv.core import EnvClient
@@ -13,6 +14,17 @@ from openenv.core.client_types import StepResult
 from openenv.core.env_server.types import State
 
 from .models import DynamicPricingAction, DynamicPricingObservation
+
+
+def default_base_url() -> str:
+    """Return the URL to point the client at.
+
+    Precedence:
+      1. SPACE_URL  (deployed HuggingFace Space — Phase 0)
+      2. API_BASE_URL (override)
+      3. http://localhost:7860 (local dev)
+    """
+    return os.getenv("SPACE_URL") or os.getenv("API_BASE_URL", "http://localhost:7860")
 
 
 class DynamicPricingEnv(

@@ -5,3 +5,13 @@ python-dotenv>=1.0.0
 fastapi>=0.115.0
 uvicorn>=0.24.0
 openenv-core==0.2.3
+
+# --- Phase 1: training stack (GPU-only — install on the training machine) ---
+# Unsloth pulls in torch/bitsandbytes already pinned for the CUDA build.
+# trl>=0.12.0
+# unsloth>=2024.12
+# transformers>=4.46.0
+# torch>=2.1.0
+# datasets>=2.18.0
+# accelerate>=0.26.0
+# bitsandbytes>=0.43.0
