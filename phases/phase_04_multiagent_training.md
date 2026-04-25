@@ -7,6 +7,27 @@ Run the complete sequential training cycle: train platform against trained simul
 
 ---
 
+## Stability Gate — Must Pass Before This Phase Begins
+
+From the hackathon guide: "Do not start with scale. First confirm everything is stable."
+
+Before running Phase 4 training, verify Phase 3 outputs are sound:
+
+- [ ] `checkpoints/phase3/simulator_lora/` exists and loads without errors
+- [ ] Simulator LLM produces valid `{"rider": ..., "driver": ...}` JSON in >80% of generations
+- [ ] Simulator bluff rate is 20–50% (not 0% = never bluffs, not 80%+ = recklessly bluffs)
+- [ ] Deal collapse rate with simulator_v1 is below 60%
+- [ ] Anti-hacking checks from Phase 2b pass on simulator outputs too
+- [ ] No drift detected in simulator training reward history
+
+**If bluff rate is 0%:** The simulator learned to always be honest — its reward signal may not be distinguishing bluff from honest. Re-check `compute_simulator_reward()` in `reward.py`.
+
+**If deal collapse rate is >60%:** Simulator is bluffing too aggressively. Add a stronger collapse penalty and re-run Phase 3.
+
+---
+
+---
+
 ## The Full Training Arc
 
 ```
@@ -133,9 +154,40 @@ def train(task, num_steps, simulator_ckpt, platform_ckpt, output_dir):
 
 ---
 
-## Step 4.2 — Extend to Medium and Hard Tasks
+## Step 4.1b — Monitoring Protocol During Phase 4 Training
 
-Once easy task is stable, repeat the cycle for medium then hard.
+From the hackathon guide: "Do not watch only one scalar."
+
+Log ALL of these columns every 50 steps — not just overall reward:
+
+| Column | What to watch for | Problem signal |
+|---|---|---|
+| `avg_reward` | Should trend upward | Flat or declining after 200 steps |
+| `completion_rate` | Should recover from Phase 3 dip | Stays below Phase 2 baseline after 500 steps |
+| `cancellation_rate` | Should decrease as platform reads bluffs | Rising — platform is triggering more cancellations |
+| `timeout_rate` | Should stay low | Rising — platform becoming too passive |
+| `avg_steps_to_close` | Should decrease | Rising — platform is probing more inefficiently |
+| `format_compliance_rate` | Should stay >90% | Dropping — model regressing on output format |
+| `anti_hack_violations` | Should be 0 | Any nonzero — investigate immediately |
+| `bluff_rate_by_sim` | Should stay 20–50% | Sim model loaded as frozen — should not change |
+
+Save full metrics to `data/training_metrics_phase4.json` every 50 steps.
+
+Also call `inspect_generations()` (from Phase 2b) every 100 steps on platform outputs.
+
+---
+
+## Step 4.2 — Extend to Medium and Hard Tasks (Scale Gate)
+
+From the hackathon guide: "Only after the loop is stable should you increase scale, batch size, or environment diversity."
+
+**Scale gate — must pass on easy task before running medium or hard:**
+- [ ] Completion rate > 60% on easy (vs strategic simulator)
+- [ ] Avg reward trending upward for at least 200 consecutive steps
+- [ ] No anti-hacking violations in last 100 inspected generations
+- [ ] Format compliance rate > 90%
+
+Once the gate passes, repeat the cycle for medium then hard.
 
 ```bash
 # Easy cycle (already done in phase 2 + 3 + 4)
