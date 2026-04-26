@@ -1,0 +1,216 @@
+{
+  "baseline": {
+    "avg_reward": -0.31,
+    "completion_rate": 0.25,
+    "cancel_rate": 0.62,
+    "timeout_rate": 0.04,
+    "n_episodes": 20
+  },
+  "steps": [
+    {
+      "step": 16,
+      "avg_reward": -0.3359,
+      "window_avg": -0.4193,
+      "completion_rate": 0.295,
+      "cancel_rate": 0.577,
+      "timeout_rate": 0.036,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.02049,
+      "elapsed_s": 72.91
+    },
+    {
+      "step": 24,
+      "avg_reward": -0.2249,
+      "window_avg": -0.3066,
+      "completion_rate": 0.304,
+      "cancel_rate": 0.587,
+      "timeout_rate": 0.047,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.017663,
+      "elapsed_s": 67.17
+    },
+    {
+      "step": 32,
+      "avg_reward": -0.3029,
+      "window_avg": -0.3826,
+      "completion_rate": 0.294,
+      "cancel_rate": 0.553,
+      "timeout_rate": 0.046,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.018111,
+      "elapsed_s": 69.68
+    },
+    {
+      "step": 40,
+      "avg_reward": -0.1055,
+      "window_avg": -0.1827,
+      "completion_rate": 0.335,
+      "cancel_rate": 0.567,
+      "timeout_rate": 0.04,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.015153,
+      "elapsed_s": 68.23
+    },
+    {
+      "step": 56,
+      "avg_reward": -0.0461,
+      "window_avg": -0.1171,
+      "completion_rate": 0.363,
+      "cancel_rate": 0.528,
+      "timeout_rate": 0.044,
+      "anti_hack_violations": 1,
+      "grpo_loss": 0.014102,
+      "elapsed_s": 71.8
+    },
+    {
+      "step": 64,
+      "avg_reward": -0.0716,
+      "window_avg": -0.1386,
+      "completion_rate": 0.374,
+      "cancel_rate": 0.509,
+      "timeout_rate": 0.051,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.013422,
+      "elapsed_s": 71.73
+    },
+    {
+      "step": 72,
+      "avg_reward": 0.0338,
+      "window_avg": -0.0287,
+      "completion_rate": 0.402,
+      "cancel_rate": 0.487,
+      "timeout_rate": 0.044,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.01175,
+      "elapsed_s": 72.68
+    },
+    {
+      "step": 80,
+      "avg_reward": 0.1673,
+      "window_avg": 0.1096,
+      "completion_rate": 0.402,
+      "cancel_rate": 0.426,
+      "timeout_rate": 0.04,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.012194,
+      "elapsed_s": 71.96
+    },
+    {
+      "step": 96,
+      "avg_reward": 0.3596,
+      "window_avg": 0.3126,
+      "completion_rate": 0.476,
+      "cancel_rate": 0.375,
+      "timeout_rate": 0.051,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.008997,
+      "elapsed_s": 67.09
+    },
+    {
+      "step": 104,
+      "avg_reward": 0.4354,
+      "window_avg": 0.3939,
+      "completion_rate": 0.504,
+      "cancel_rate": 0.352,
+      "timeout_rate": 0.059,
+      "anti_hack_violations": 1,
+      "grpo_loss": 0.009139,
+      "elapsed_s": 68.27
+    },
+    {
+      "step": 112,
+      "avg_reward": 0.396,
+      "window_avg": 0.3598,
+      "completion_rate": 0.517,
+      "cancel_rate": 0.311,
+      "timeout_rate": 0.054,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.008184,
+      "elapsed_s": 69.51
+    },
+    {
+      "step": 120,
+      "avg_reward": 0.4485,
+      "window_avg": 0.4175,
+      "completion_rate": 0.568,
+      "cancel_rate": 0.287,
+      "timeout_rate": 0.052,
+      "anti_hack_violations": 1,
+      "grpo_loss": 0.008472,
+      "elapsed_s": 72.51
+    },
+    {
+      "step": 136,
+      "avg_reward": 0.6344,
+      "window_avg": 0.6125,
+      "completion_rate": 0.599,
+      "cancel_rate": 0.243,
+      "timeout_rate": 0.045,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.00727,
+      "elapsed_s": 68.1
+    },
+    {
+      "step": 144,
+      "avg_reward": 0.6078,
+      "window_avg": 0.5896,
+      "completion_rate": 0.629,
+      "cancel_rate": 0.208,
+      "timeout_rate": 0.055,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.007578,
+      "elapsed_s": 70.11
+    },
+    {
+      "step": 152,
+      "avg_reward": 0.7418,
+      "window_avg": 0.7269,
+      "completion_rate": 0.645,
+      "cancel_rate": 0.187,
+      "timeout_rate": 0.058,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.006091,
+      "elapsed_s": 68.66
+    },
+    {
+      "step": 160,
+      "avg_reward": 0.8154,
+      "window_avg": 0.8033,
+      "completion_rate": 0.649,
+      "cancel_rate": 0.19,
+      "timeout_rate": 0.063,
+      "anti_hack_violations": 0,
+      "grpo_loss": 0.00737,
+      "elapsed_s": 70.03
+    },
+    {
+      "step": 176,
+      "avg_reward": 0.8331,
+      "window_avg": 0.8253,
+      "completion_rate": 0.678,
+      "cancel_rate": 0.162,
+      "timeout_rate": 0.059,
+      "anti_hack_violations": 1,
+      "grpo_loss": 0.005777,
+      "elapsed_s": 72.65
+    },
+    {
+      "step": 184,
+      "avg_reward": 0.885,
+      "window_avg": 0.8787,
+      "completion_rate": 0.693,
+      "cancel_rate": 0.172,
+      "timeout_rate": 0.054,
+      "anti_hack_violations": 2,
+      "grpo_loss": 0.005732,
+      "elapsed_s": 67.82
+    }
+  ],
+  "post_training": {
+    "avg_reward": 0.885,
+    "completion_rate": 0.693,
+    "cancel_rate": 0.172,
+    "timeout_rate": 0.054,
+    "n_episodes": 20
+  }
+}

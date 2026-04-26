@@ -1,0 +1,17 @@
+﻿python : Traceback (most recent call last):
+At line:1 char:21
++ ... ic_pricing; python scripts/plot_training_curves.py --output data/trai ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\ANIKA\development\scaler\proj\New folder\final\dynamic_pricing\scripts\plot_training_curves.py", line 
+158, in <module>
+    plot(
+  File "C:\Users\ANIKA\development\scaler\proj\New folder\final\dynamic_pricing\scripts\plot_training_curves.py", line 
+145, in plot
+    print(f"[SAVE] Training curves \u2192 {output_path}")
+  File "C:\Users\ANIKA\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 23: character maps to <undefined>

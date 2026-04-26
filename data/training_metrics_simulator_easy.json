@@ -1,0 +1,124 @@
+{
+  "baseline": {
+    "avg_sim_reward": -1.24,
+    "collapse_rate": 0.62,
+    "bluff_rate": 0.1,
+    "n_episodes": 20
+  },
+  "steps": [
+    {
+      "step": 16,
+      "avg_sim_reward": -1.0984,
+      "window_avg": -1.2043,
+      "bluff_rate": 0.126,
+      "collapse_rate": 0.575,
+      "grpo_loss": 0.021312,
+      "elapsed_s": 23.81
+    },
+    {
+      "step": 24,
+      "avg_sim_reward": -0.8716,
+      "window_avg": -0.9723,
+      "bluff_rate": 0.143,
+      "collapse_rate": 0.57,
+      "grpo_loss": 0.019236,
+      "elapsed_s": 20.22
+    },
+    {
+      "step": 32,
+      "avg_sim_reward": -0.7153,
+      "window_avg": -0.8092,
+      "bluff_rate": 0.173,
+      "collapse_rate": 0.561,
+      "grpo_loss": 0.017507,
+      "elapsed_s": 21.57
+    },
+    {
+      "step": 40,
+      "avg_sim_reward": -0.6746,
+      "window_avg": -0.7604,
+      "bluff_rate": 0.15,
+      "collapse_rate": 0.528,
+      "grpo_loss": 0.013996,
+      "elapsed_s": 20.27
+    },
+    {
+      "step": 56,
+      "avg_sim_reward": -0.3669,
+      "window_avg": -0.4324,
+      "bluff_rate": 0.198,
+      "collapse_rate": 0.459,
+      "grpo_loss": 0.011165,
+      "elapsed_s": 20.0
+    },
+    {
+      "step": 64,
+      "avg_sim_reward": -0.1911,
+      "window_avg": -0.2456,
+      "bluff_rate": 0.218,
+      "collapse_rate": 0.429,
+      "grpo_loss": 0.009976,
+      "elapsed_s": 23.5
+    },
+    {
+      "step": 72,
+      "avg_sim_reward": 0.0828,
+      "window_avg": 0.0389,
+      "bluff_rate": 0.244,
+      "collapse_rate": 0.394,
+      "grpo_loss": 0.009778,
+      "elapsed_s": 21.46
+    },
+    {
+      "step": 80,
+      "avg_sim_reward": 0.149,
+      "window_avg": 0.1147,
+      "bluff_rate": 0.307,
+      "collapse_rate": 0.397,
+      "grpo_loss": 0.009224,
+      "elapsed_s": 21.94
+    },
+    {
+      "step": 96,
+      "avg_sim_reward": 0.3969,
+      "window_avg": 0.3776,
+      "bluff_rate": 0.294,
+      "collapse_rate": 0.328,
+      "grpo_loss": 0.007392,
+      "elapsed_s": 23.32
+    },
+    {
+      "step": 104,
+      "avg_sim_reward": 0.5015,
+      "window_avg": 0.4874,
+      "bluff_rate": 0.301,
+      "collapse_rate": 0.338,
+      "grpo_loss": 0.007485,
+      "elapsed_s": 20.59
+    },
+    {
+      "step": 112,
+      "avg_sim_reward": 0.6455,
+      "window_avg": 0.6354,
+      "bluff_rate": 0.31,
+      "collapse_rate": 0.31,
+      "grpo_loss": 0.008099,
+      "elapsed_s": 23.45
+    },
+    {
+      "step": 120,
+      "avg_sim_reward": 0.7261,
+      "window_avg": 0.7189,
+      "bluff_rate": 0.33,
+      "collapse_rate": 0.295,
+      "grpo_loss": 0.005749,
+      "elapsed_s": 23.09
+    }
+  ],
+  "post_training": {
+    "avg_sim_reward": 0.7261,
+    "collapse_rate": 0.295,
+    "bluff_rate": 0.33,
+    "n_episodes": 20
+  }
+}

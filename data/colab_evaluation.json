@@ -1,0 +1,22 @@
+{
+  "easy": {
+    "A_untrained_vs_rulebased": {
+      "avg_reward": -0.8122,
+      "completion_rate": 0.28,
+      "cancellation_rate": 0.49,
+      "timeout_rate": 0.23,
+      "avg_steps_per_ep": 6.82,
+      "format_compliance": 0.862,
+      "n_episodes": 50
+    },
+    "B_platformv0_vs_rulebased": {
+      "avg_reward": 0.7778,
+      "completion_rate": 0.67,
+      "cancellation_rate": 0.181,
+      "timeout_rate": 0.148,
+      "avg_steps_per_ep": 3.5,
+      "format_compliance": 0.983,
+      "n_episodes": 50
+    }
+  }
+}
