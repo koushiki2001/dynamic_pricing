@@ -19,6 +19,9 @@ A multi-step negotiation environment where an AI agent acts as a **ride-hailing 
 
 ---
 
+## 📖 Hackathon Writeup
+[![Blog](dynamic_pricing_ride_hailing_blog.md)](dynamic_pricing_ride_hailing_blog.md)
+
 ## Table of Contents
 
 - [The Problem](#the-problem)
