@@ -16,13 +16,6 @@ A multi-step negotiation environment where an AI agent acts as a **ride-hailing 
 
 ![System Architecture](System_Architecture.jpg)
 
-<details>
-<summary>Original high-resolution version (GitHub-hosted)</summary>
-
-<img width="4221" height="2808" alt="system_design" src="https://github.com/user-attachments/assets/0880850a-8a8f-4bf2-8435-9db1870c90fc" />
-
-</details>
-
 ---
 
 ## 📖 Hackathon Writeup
