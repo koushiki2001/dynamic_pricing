@@ -8,13 +8,18 @@ build/
 .venv/
 venv/
 .env.example
+.png
 
 # Keep training artifacts tracked so judges can see them
 # checkpoints/ — NOT ignored (LoRA adapter files pushed after training)
 # data/        — NOT ignored (metrics JSON + training curves PNG pushed after training)
 
+# Hugging Face Spaces rejects files >10 MiB. The adapter metadata is enough;
+# large tokenizer blobs can be reloaded from the base model when needed.
+checkpoints/**/tokenizer.json
+checkpoints/last_stable/
+
 # Only ignore large raw model weights if accidentally placed here
 *.bin
-*.safetensors
 *.pt
 *.ckpt
