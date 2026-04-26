@@ -593,3 +593,122 @@ Stage D reward > Stage B reward AND completion% > 65%?
 | **Total** | | **~2 hrs** | |
 
 For full training (500/500/1000 steps): ~5-6 hrs on T4.
+
+---
+
+## 12. Colab Setup — Two Ways to Run
+
+There are two notebooks and two ways to get your code onto Colab. Pick the one that fits your situation.
+
+---
+
+### Option 1 — GitHub Clone (recommended, cleanest)
+
+**Notebook:** `notebooks/train_colab.ipynb`  
+**What to upload to Colab:** only the notebook file itself  
+**Prerequisite:** your code is pushed to `https://github.com/koushiki2001/dynamic_pricing` on branch `milan_v1`
+
+#### Steps
+
+1. Open [https://colab.research.google.com](https://colab.research.google.com)
+2. `File → Upload notebook` → select `notebooks/train_colab.ipynb`
+3. Run **Cell 1** (install unsloth/openenv-core)
+4. Run **Cell 2** (mount Google Drive — optional, only needed if you want Drive backup)
+5. Run **Cell 3** — this clones the repo:
+   ```
+   git clone -b milan_v1 https://github.com/koushiki2001/dynamic_pricing /content/dynamic_pricing_env
+   pip install -r /content/dynamic_pricing_env/requirements.txt
+   ```
+   After this cell, all code is at `/content/dynamic_pricing_env/dynamic_pricing/`
+6. Continue running cells 4 onwards normally.
+
+#### Path anchors used inside this notebook
+| Variable | Value |
+|----------|-------|
+| `REPO_DIR` | `/content/dynamic_pricing_env` |
+| `PKG_DIR` | `/content/dynamic_pricing_env/dynamic_pricing` |
+| `DATA_DIR` | `/content/dynamic_pricing_env/dynamic_pricing/data` |
+| Checkpoints | `/content/dynamic_pricing_env/dynamic_pricing/checkpoints/` |
+
+#### Pushing results back after training
+Cell 37 pushes trained checkpoints and metrics back to the same branch:
+```python
+GITHUB_USERNAME = "milanmandal"
+REPO_OWNER     = "koushiki2001"
+REPO_NAME      = "dynamic_pricing"
+PUSH_BRANCH    = "milan_v1"
+GITHUB_TOKEN   = "ghp_..."   # your PAT
+```
+Results land at `https://github.com/koushiki2001/dynamic_pricing/tree/milan_v1/dynamic_pricing/data`
+
+---
+
+### Option 2 — Upload Entire Workspace to Google Drive
+
+**Notebook:** `notebooks/train_colab_workspace.ipynb`  
+**What to upload to Colab:** your entire `dynamic_pricing` workspace folder, placed in Google Drive  
+**Prerequisite:** workspace folder is at `My Drive/dynamic_pricing/` in your Google Drive
+
+#### Steps
+
+1. Zip and upload your workspace folder to Google Drive so the structure is:
+   ```
+   My Drive/
+   └── dynamic_pricing/         ← this is your workspace root
+       ├── requirements.txt
+       ├── dynamic_pricing/     ← Python package
+       │   ├── training/
+       │   ├── data/
+       │   └── checkpoints/
+       └── notebooks/
+   ```
+2. Open [https://colab.research.google.com](https://colab.research.google.com)
+3. Upload `notebooks/train_colab_workspace.ipynb`
+4. Run **Cell 1** (install unsloth)
+5. Run **Cell 3** — this mounts Drive and sets paths:
+   ```python
+   from google.colab import drive
+   drive.mount("/content/drive")
+   WORKSPACE_PATH = "/content/drive/My Drive/dynamic_pricing"
+   ```
+   After this cell, all code reads/writes directly from your Drive folder — no clone needed.
+6. Continue running cells 4 onwards normally.
+
+#### Path anchors used inside this notebook
+| Variable | Value |
+|----------|-------|
+| `WORKSPACE_PATH` | `/content/drive/My Drive/dynamic_pricing` |
+| `DATA_DIR` | `/content/drive/My Drive/dynamic_pricing/data` |
+| Checkpoints | `/content/drive/My Drive/dynamic_pricing/checkpoints/` |
+
+#### Saving results
+Because the code runs directly from Drive, all outputs (metrics, checkpoints, plots) are written directly to your Drive. No push step needed — files are already persisted. If you want to push to GitHub as well, run Cell 37 (it auto-detects if the workspace is a git repo).
+
+#### Drive space requirement
+~4–6 GB for model checkpoints (3 rounds × LoRA weights). Make sure Drive has space before starting.
+
+---
+
+### Side-by-side comparison
+
+| | Option 1 (GitHub Clone) | Option 2 (Drive Workspace) |
+|---|---|---|
+| Notebook | `train_colab.ipynb` | `train_colab_workspace.ipynb` |
+| What you upload to Colab | Just the notebook | Nothing — Drive is used |
+| Code lives at | `/content/dynamic_pricing_env/` | `/content/drive/My Drive/dynamic_pricing/` |
+| Results auto-saved to | Colab RAM (volatile) + pushed to GitHub | Google Drive (persistent) |
+| Push to GitHub needed? | Yes — run Cell 37 | Optional |
+| Risk of data loss on crash | Low (auto-save every 50 steps to `data/`) | None (writes directly to Drive) |
+| Best for | Clean reproducible runs, judge demos | Quick iteration, no GitHub access |
+
+---
+
+### Which one should I use for the hackathon?
+
+**Use Option 1 (GitHub Clone)** if:
+- You want the judge to see results on GitHub
+- You're doing the final training run
+
+**Use Option 2 (Drive Workspace)** if:
+- You're iterating quickly and don't want to push to GitHub every time
+- You're worried about Colab crashing and losing checkpoints
