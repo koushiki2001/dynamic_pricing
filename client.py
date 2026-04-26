@@ -1,111 +1,104 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
+"""OpenEnv client for the Dynamic Pricing environment.
 
-"""Dynamic Pricing Env Environment Client."""
+Connects to a running environment server (local or HuggingFace Space) and
+exposes the same reset() / step() / state() interface as the local
+DynamicPricingEnv class — so training code can switch between local and
+remote execution by changing one URL.
+
+Usage:
+    # Local server
+    client = DynamicPricingClient()
+    obs = client.reset(task_name="easy")
+    result = client.step({"type": "propose_price", "payload": {"price": 15.5}})
+
+    # HuggingFace Space
+    client = DynamicPricingClient(base_url="https://<org>-<space>.hf.space")
+
+    # From environment variable (set SPACE_URL or API_BASE_URL)
+    client = DynamicPricingClient()
+"""
+
+from __future__ import annotations
 
 import os
-from typing import Dict
+from typing import Any, Dict, Optional
 
-from openenv.core import EnvClient
-from openenv.core.client_types import StepResult
-from openenv.core.env_server.types import State
-
-from .models import DynamicPricingAction, DynamicPricingObservation
+import requests
 
 
-def default_base_url() -> str:
-    """Return the URL to point the client at.
-
-    Precedence:
-      1. SPACE_URL  (deployed HuggingFace Space — Phase 0)
-      2. API_BASE_URL (override)
-      3. http://localhost:7860 (local dev)
-    """
+def _default_base_url() -> str:
+    """Precedence: SPACE_URL → API_BASE_URL → localhost."""
     return os.getenv("SPACE_URL") or os.getenv("API_BASE_URL", "http://localhost:7860")
 
 
-class DynamicPricingEnv(
-    EnvClient[DynamicPricingAction, DynamicPricingObservation, State]
-):
-    """
-    Client for the Dynamic Pricing Env Environment.
+class DynamicPricingClient:
+    """HTTP client for the Dynamic Pricing environment server.
 
-    This client maintains a persistent WebSocket connection to the environment server,
-    enabling efficient multi-step interactions with lower latency.
-    Each client instance has its own dedicated environment session on the server.
-
-    Example:
-        >>> # Connect to a running server
-        >>> with DynamicPricingEnv(base_url="http://localhost:8000") as client:
-        ...     result = client.reset()
-        ...     print(result.observation.echoed_message)
-        ...
-        ...     result = client.step(DynamicPricingAction(message="Hello!"))
-        ...     print(result.observation.echoed_message)
-
-    Example with Docker:
-        >>> # Automatically start container and connect
-        >>> client = DynamicPricingEnv.from_docker_image("dynamic_pricing_env-env:latest")
-        >>> try:
-        ...     result = client.reset()
-        ...     result = client.step(DynamicPricingAction(message="Test"))
-        ... finally:
-        ...     client.close()
+    Wraps the FastAPI endpoints as a clean Python interface that mirrors the
+    local DynamicPricingEnv API so training scripts can use either without
+    changing their rollout logic.
     """
 
-    def _step_payload(self, action: DynamicPricingAction) -> Dict:
+    def __init__(self, base_url: Optional[str] = None, timeout: int = 30) -> None:
+        self.base_url = (base_url or _default_base_url()).rstrip("/")
+        self.timeout = timeout
+        self._episode_id: Optional[str] = None
+
+    # ------------------------------------------------------------------
+    # Core interface
+    # ------------------------------------------------------------------
+
+    def reset(self, task_name: str = "easy", seed: Optional[int] = None) -> Dict[str, Any]:
+        """Start a new episode. Returns the initial observation dict."""
+        params: Dict[str, Any] = {"task_name": task_name}
+        if seed is not None:
+            params["seed"] = seed
+        resp = requests.post(f"{self.base_url}/reset", params=params, timeout=self.timeout)
+        resp.raise_for_status()
+        data = resp.json()
+        self._episode_id = data.get("episode_id")
+        return data["observation"]
+
+    def step(self, action: Dict[str, Any]) -> Dict[str, Any]:
+        """Propose a price. Returns {observation, reward, done, info}.
+
+        action format: {"type": "propose_price", "payload": {"price": 15.5}}
         """
-        Convert DynamicPricingAction to JSON payload for step message.
-
-        Args:
-            action: DynamicPricingAction instance
-
-        Returns:
-            Dictionary representation suitable for JSON encoding
-        """
-        return {
-            "message": action.message,
-        }
-
-    def _parse_result(self, payload: Dict) -> StepResult[DynamicPricingObservation]:
-        """
-        Parse server response into StepResult[DynamicPricingObservation].
-
-        Args:
-            payload: JSON response data from server
-
-        Returns:
-            StepResult with DynamicPricingObservation
-        """
-        obs_data = payload.get("observation", {})
-        observation = DynamicPricingObservation(
-            echoed_message=obs_data.get("echoed_message", ""),
-            message_length=obs_data.get("message_length", 0),
-            done=payload.get("done", False),
-            reward=payload.get("reward"),
-            metadata=obs_data.get("metadata", {}),
+        resp = requests.post(
+            f"{self.base_url}/step",
+            json=action,
+            timeout=self.timeout,
         )
+        resp.raise_for_status()
+        return resp.json()
 
-        return StepResult(
-            observation=observation,
-            reward=payload.get("reward"),
-            done=payload.get("done", False),
-        )
+    def state(self) -> Dict[str, Any]:
+        """Return the current observation without advancing the episode."""
+        resp = requests.get(f"{self.base_url}/state", timeout=self.timeout)
+        resp.raise_for_status()
+        return resp.json()
 
-    def _parse_state(self, payload: Dict) -> State:
-        """
-        Parse server response into State object.
+    # ------------------------------------------------------------------
+    # Convenience helpers
+    # ------------------------------------------------------------------
 
-        Args:
-            payload: JSON response from state request
+    def health(self) -> Dict[str, Any]:
+        resp = requests.get(f"{self.base_url}/health", timeout=self.timeout)
+        resp.raise_for_status()
+        return resp.json()
 
-        Returns:
-            State object with episode_id and step_count
-        """
-        return State(
-            episode_id=payload.get("episode_id"),
-            step_count=payload.get("step_count", 0),
-        )
+    def schema(self) -> Dict[str, Any]:
+        resp = requests.get(f"{self.base_url}/schema", timeout=self.timeout)
+        resp.raise_for_status()
+        return resp.json()
+
+    def propose_price(self, price: float) -> Dict[str, Any]:
+        """Shorthand for the only supported action type."""
+        return self.step({"type": "propose_price", "payload": {"price": round(price, 2)}})
+
+    @property
+    def episode_id(self) -> Optional[str]:
+        return self._episode_id
+
+    def __repr__(self) -> str:
+        return f"DynamicPricingClient(base_url={self.base_url!r})"

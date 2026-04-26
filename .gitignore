@@ -8,3 +8,13 @@ build/
 .venv/
 venv/
 .env.example
+
+# Keep training artifacts tracked so judges can see them
+# checkpoints/ — NOT ignored (LoRA adapter files pushed after training)
+# data/        — NOT ignored (metrics JSON + training curves PNG pushed after training)
+
+# Only ignore large raw model weights if accidentally placed here
+*.bin
+*.safetensors
+*.pt
+*.ckpt

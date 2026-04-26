@@ -437,7 +437,57 @@ data/
 
 ---
 
-## 7. Hackathon Guide Coverage
+## 7. What to Push So Judges Can See Everything
+
+The judges need three things in the repo when they pull it:
+
+### 7.1 Training code (already tracked)
+All files under `training/` are tracked in git — judges can see the full GRPO implementation, rollout logic, prompt builders, and anti-hack checks without running anything.
+
+### 7.2 Training results (push AFTER training)
+After running `bash run_training.sh`, commit and push these files:
+
+```bash
+# After training completes:
+git add data/training_metrics_platform_easy.json
+git add data/training_metrics_simulator_easy.json
+git add data/final_evaluation.json
+git add data/training_curves.png
+git add data/baseline_snapshot_easy.json
+git commit -m "Add training results and evaluation metrics"
+git push
+```
+
+These are NOT ignored by `.gitignore` — they will be visible to judges.
+
+### 7.3 Checkpoints (push AFTER training)
+LoRA adapter files are small (~50–200 MB each). Push them so judges can reproduce inference:
+
+```bash
+git add checkpoints/phase2/platform_lora/
+git add checkpoints/phase3/simulator_lora/
+git add checkpoints/phase4/platform_lora/
+git commit -m "Add trained LoRA checkpoints"
+git push
+```
+
+> If checkpoint files are too large for git, upload to HF Hub instead:
+> ```bash
+> huggingface-cli upload <your-org>/dynamic-pricing-checkpoints checkpoints/
+> ```
+> Then reference them in README so judges know where to find them.
+
+### 7.4 What judges will see in README
+The README now contains:
+- Full training architecture explanation
+- 4-stage evaluation table (A→D) with expected numbers
+- `![Training curves](data/training_curves.png)` — renders inline on HF Spaces
+- Training log sample output
+- All training commands to reproduce
+
+---
+
+## 8. Hackathon Guide Coverage
 
 | Guide Point | Covered By |
 |---|---|
